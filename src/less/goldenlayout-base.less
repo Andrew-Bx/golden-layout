@@ -24,6 +24,40 @@
 @height5: 18px; // Appears 1 time
 @height6: 15px; // Appears 1 time
 
+.lm_goldenlayout {
+  // TODO ASB: should we really be applying styles to root element (provided by consumer), or should we create our own 'root' element?
+  display: grid;
+//   grid-template-columns: [first] 40px [line2] 50px [line3] auto [col4-start] 50px [five] 40px [end];
+//   grid-template-rows: [row1-start] 25% [row1-end] 100px [third-line] auto [last-line];
+  grid-template-columns: 25% 50% 25%;
+  grid-template-rows: 25% 50% 25%;
+  grid-template-areas: 
+    "leftPanel topPanel  rightPanel"
+    "leftPanel mainPanel rightPanel"
+    "bottomPanel bottomPanel bottomPanel";
+}
+
+.lm_mainPanel {
+  grid-area: mainPanel;
+  background-color: hsl(0deg 0% 10%); /* TODO ASB debugging only! */
+}
+.lm_leftPanel {
+  grid-area: leftPanel;
+  background-color: hsl(0deg 0% 15%); /* TODO ASB debugging only! */
+}
+.lm_topPanel {
+  grid-area: topPanel;
+  background-color: hsl(0deg 0% 20%); /* TODO ASB debugging only! */
+}
+.lm_rightPanel {
+  grid-area: rightPanel;
+  background-color: hsl(0deg 0% 25%); /* TODO ASB debugging only! */
+}
+.lm_bottomPanel {
+  grid-area: bottomPanel;
+  background-color: hsl(0deg 0% 30%); /* TODO ASB debugging only! */
+}
+
 .lm_root {
   position: relative;
 }

@@ -31,13 +31,13 @@ export default class TestTools {
 
 	/**
 	 * Takes a path of type.index.type.index, and returns the corresponding resolved item config
-	 * 
+	 *
 	 * @example
 	 * verifyPath('row.0.stack.1.component', layout)
 	 * // returns object of type ComponentItemConfig
 	 */
 	public static verifyPath(path: string, layout: GoldenLayout): ContentItem {
-		let rootItem = layout.rootItem;
+		let rootItem = layout.mainPanelRootItem; // TODO ASB: this method needs to take 'which panel' parameter?
 		expect(rootItem).toBeTruthy();
 		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 		rootItem = rootItem!;

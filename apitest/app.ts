@@ -274,7 +274,7 @@ export class App {
             componentType,
             type: 'component',
         }
-        const rootItem = this._goldenLayout.rootItem;
+        const rootItem = this._goldenLayout.mainPanelRootItem; // TODO ASB: should do for all panels?
         if (rootItem !== undefined) {
             const content = [rootItem];
             this.replaceComponentRecursively(content, itemConfig);

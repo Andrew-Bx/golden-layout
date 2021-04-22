@@ -27,7 +27,6 @@ export class GroundItem extends ComponentParentableItem {
         this.isGround = true;
         this._childElementContainer = this.element;
         this._containerElement = containerElement;
-        this._containerElement.appendChild(this.element);
     }
 
     init(): void {
@@ -140,6 +139,7 @@ export class GroundItem extends ComponentParentableItem {
         if (width === undefined || height === undefined) {
             this.updateSize(); // For backwards compatibility with v1.x API
         } else {
+            // TODO ASB: should we ever be getting here? (ie setting explicit size on ground-item; now going to rely on grid percentage sizing?)
             setElementWidth(this.element, width);
             setElementHeight(this.element, height);
 
@@ -296,10 +296,12 @@ export class GroundItem extends ComponentParentableItem {
     }
 
     private updateNodeSize(): void {
-        const { width, height } = getElementWidthAndHeight(this._containerElement);
+        // TODO ASB: no longer setting size of ground item (it's controlled by grid)
+        // const { width, height } = getElementWidthAndHeight(this._containerElement);
+        const { width, height } = getElementWidthAndHeight(this.element);
 
-        setElementWidth(this.element, width);
-        setElementHeight(this.element, height);
+        // setElementWidth(this.element, width);
+        // setElementHeight(this.element, height);
 
         /*
          * GroundItem can be empty
@@ -376,7 +378,8 @@ export namespace GroundItem {
     
     export function createElement(document: Document): HTMLDivElement {
         const element = document.createElement('div');
-        element.classList.add(DomConstants.ClassName.GoldenLayout);
+        // TODO ASB: breaking backwards compatibility? (are any of the css classes considered part of public API?)
+        // element.classList.add(DomConstants.ClassName.GoldenLayout);
         element.classList.add(DomConstants.ClassName.Item);
         element.classList.add(DomConstants.ClassName.Root);
         return element;

@@ -47,7 +47,7 @@ describe('drag source', function() {
 		const componentType = TestTools.TEST_COMPONENT_NAME;
 		const componentState = { html: `<div class="${createdFromDragSourceClass}"></div>` };
 		const componentTitle = 'created from drag source';
-		
+
 		let dragSourceParameters: Parameters<typeof LayoutManager.prototype.newDragSource>;
 		if (deferred) {
 			dragSourceParameters = [
@@ -68,7 +68,7 @@ describe('drag source', function() {
 	function doComponentDragTest(): void {
 		let dragProxy = TestTools.getDragProxy();
 		expect(dragProxy).toBeNull();
-	
+
 		startDrag();
 		doDrag();
 
@@ -96,7 +96,7 @@ describe('drag source', function() {
 	}
 
 	function doDrag(): void {
-		const rootRect = layout.rootItem?.element.getBoundingClientRect();
+		const rootRect = layout.mainPanelRootItem?.element.getBoundingClientRect();
 		if (rootRect === undefined) {
 			throw new Error ('no root rectangle!');
 		}

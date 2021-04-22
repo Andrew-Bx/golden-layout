@@ -1,6 +1,11 @@
 export namespace DomConstants {
     export const enum ClassName {
         GoldenLayout = 'lm_goldenlayout',
+        MainPanel = 'lm_mainPanel',
+        LeftPanel = 'lm_leftPanel',
+        TopPanel = 'lm_topPanel',
+        RightPanel = 'lm_rightPanel',
+        BottomPanel = 'lm_bottomPanel',
         Focused = 'lm_focused',
         Item = 'lm_item',
         Items = 'lm_items',

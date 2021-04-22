@@ -243,7 +243,7 @@ export abstract class ContentItem extends EventEmitter {
     // (undocumented)
     get element(): HTMLElement;
     // @internal
-    getElementArea(element?: HTMLElement): ContentItem.Area | null;
+    getElementArea(element?: HTMLElement): ContentItem.Area;
     // @internal (undocumented)
     height: number;
     // @internal (undocumented)
@@ -970,10 +970,6 @@ export abstract class LayoutManager extends EventEmitter {
     getComponentInstantiator(config: ResolvedComponentItemConfig): LayoutManager.ComponentInstantiator | undefined;
     // (undocumented)
     getRegisteredComponentTypeNames(): string[];
-    // Warning: (ae-forgotten-export) The symbol "GroundItem" needs to be exported by the entry point index.d.ts
-    //
-    // @internal (undocumented)
-    get groundItem(): GroundItem | undefined;
     // (undocumented)
     get height(): number | null;
     // @internal
@@ -986,6 +982,12 @@ export abstract class LayoutManager extends EventEmitter {
     layoutConfig: ResolvedLayoutConfig;
     loadComponentAsRoot(itemConfig: ComponentItemConfig): void;
     loadLayout(layoutConfig: LayoutConfig): void;
+    // Warning: (ae-forgotten-export) The symbol "GroundItem" needs to be exported by the entry point index.d.ts
+    //
+    // @internal (undocumented)
+    get mainGroundItem(): GroundItem | undefined;
+    // (undocumented)
+    get mainPanelRootItem(): ContentItem | undefined;
     // (undocumented)
     get maximisedStack(): Stack | undefined;
     // @deprecated
@@ -1011,8 +1013,6 @@ export abstract class LayoutManager extends EventEmitter {
     removeDragSource(dragSource: DragSource): void;
     // @internal @deprecated (undocumented)
     get root(): GroundItem | undefined;
-    // (undocumented)
-    get rootItem(): ContentItem | undefined;
     saveLayout(): ResolvedLayoutConfig;
     // @internal
     setFocusedComponentItem(item: ComponentItem | undefined, suppressEvents?: boolean): void;
@@ -1688,7 +1688,12 @@ export namespace Stack {
     }
     // @internal (undocumented)
     export type ContentAreaDimensions = {
-        [segment: string]: ContentAreaDimension;
+        [Segment.Header]: ContentAreaDimension;
+        [Segment.Body]?: ContentAreaDimension;
+        [Segment.Left]?: ContentAreaDimension;
+        [Segment.Top]?: ContentAreaDimension;
+        [Segment.Right]?: ContentAreaDimension;
+        [Segment.Bottom]?: ContentAreaDimension;
     };
     // @internal (undocumented)
     export function createElement(document: Document): HTMLDivElement;
