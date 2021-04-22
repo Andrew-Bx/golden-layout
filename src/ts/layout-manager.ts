@@ -59,12 +59,12 @@ export abstract class LayoutManager extends EventEmitter {
     /** @internal */
     // private _groundItem: GroundItem | undefined = undefined;
     private _groundPanelItems: {
-        main: GroundItem | undefined,
-        leftPanel: GroundItem | undefined,
-        topPanel: GroundItem | undefined,
-        rightPanel: GroundItem | undefined,
-        bottomPanel: GroundItem | undefined,
-    } = { main: undefined, leftPanel: undefined, topPanel: undefined, rightPanel: undefined, bottomPanel: undefined };
+        mainPanel: GroundItem,
+        leftPanel: GroundItem,
+        topPanel: GroundItem,
+        rightPanel: GroundItem,
+        bottomPanel: GroundItem,
+    };
     /** @internal */
     private _openPopouts: BrowserPopout[] = [];
     /** @internal */
@@ -127,7 +127,7 @@ export abstract class LayoutManager extends EventEmitter {
     get isInitialised(): boolean { return this._isInitialised; }
     /** @internal */
     // get groundItem(): GroundItem | undefined { return this._groundItem; }
-    get mainGroundItem(): GroundItem | undefined { return this._groundPanelItems.main; }
+    get mainGroundItem(): GroundItem | undefined { return this._groundPanelItems.mainPanel; }
     /** @internal @deprecated use {@link (LayoutManager:class).mainGroundItem} instead */
     get root(): GroundItem | undefined { return this.mainGroundItem; }
     get openPopouts(): BrowserPopout[] { return this._openPopouts; }
@@ -144,7 +144,7 @@ export abstract class LayoutManager extends EventEmitter {
      */
     get eventHub(): EventHub { return this._eventHub; }
     get mainPanelRootItem(): ContentItem | undefined {
-        const mainGroundItem = this._groundPanelItems.main;
+        const mainGroundItem = this._groundPanelItems.mainPanel;
         if (mainGroundItem === undefined) {
             throw new Error('Cannot access rootItem before init');
         } else {
@@ -444,26 +444,28 @@ export abstract class LayoutManager extends EventEmitter {
         this.updateSizeFromContainer();
 
         const layoutConfig = this.layoutConfig;
-        this._groundPanelItems.main = new GroundItem(this, layoutConfig.root, this._containerElement);
-        this._groundPanelItems.main.init();
+        const mainPanel = new GroundItem(this, layoutConfig.root, this._containerElement);
+        mainPanel.init();
         // TODO ASB: provide way to enuemrate side panels?
-        this._groundPanelItems.leftPanel = new GroundItem(this, undefined, this._containerElement);
-        this._groundPanelItems.leftPanel.init();
-        this._groundPanelItems.topPanel = new GroundItem(this, undefined, this._containerElement);
-        this._groundPanelItems.topPanel.init();
-        this._groundPanelItems.rightPanel = new GroundItem(this, undefined, this._containerElement);
-        this._groundPanelItems.rightPanel.init();
-        this._groundPanelItems.bottomPanel = new GroundItem(this, undefined, this._containerElement);
-        this._groundPanelItems.bottomPanel.init();
+        const leftPanel = new GroundItem(this, undefined, this._containerElement);
+        leftPanel.init();
+        const topPanel = new GroundItem(this, undefined, this._containerElement);
+        topPanel.init();
+        const rightPanel = new GroundItem(this, undefined, this._containerElement);
+        rightPanel.init();
+        const bottomPanel = new GroundItem(this, undefined, this._containerElement);
+        bottomPanel.init();
 
-        this._containerElement.appendChild(this._groundPanelItems.main.element);
+        this._groundPanelItems = { mainPanel, leftPanel, topPanel, rightPanel, bottomPanel };
+
+        this._containerElement.appendChild(this._groundPanelItems.mainPanel.element);
         this._containerElement.appendChild(this._groundPanelItems.leftPanel.element);
         this._containerElement.appendChild(this._groundPanelItems.topPanel.element);
         this._containerElement.appendChild(this._groundPanelItems.rightPanel.element);
         this._containerElement.appendChild(this._groundPanelItems.bottomPanel.element);
 
         this._containerElement.classList.add(DomConstants.ClassName.GoldenLayout);
-        this._groundPanelItems.main.element.classList.add(DomConstants.ClassName.MainPanel);
+        this._groundPanelItems.mainPanel.element.classList.add(DomConstants.ClassName.MainPanel);
         this._groundPanelItems.leftPanel.element.classList.add(DomConstants.ClassName.LeftPanel);
         this._groundPanelItems.topPanel.element.classList.add(DomConstants.ClassName.TopPanel);
         this._groundPanelItems.rightPanel.element.classList.add(DomConstants.ClassName.RightPanel);
@@ -486,11 +488,11 @@ export abstract class LayoutManager extends EventEmitter {
             // In case application not correctly using legacy constructor
             throw new Error('GoldenLayout: Need to call init() if LayoutConfig with defined root passed to constructor')
         } else {
-            if (this._groundPanelItems.main === undefined) {
+            if (this._groundPanelItems.mainPanel === undefined) {
                 throw new UnexpectedUndefinedError('LMLL11119');
             } else {
                 this.layoutConfig = LayoutConfig.resolve(layoutConfig);
-                this._groundPanelItems.main.loadRoot(this.layoutConfig.root);
+                this._groundPanelItems.mainPanel.loadRoot(this.layoutConfig.root);
                 // TODO ASB: load config in to side panels
 
                 this.checkLoadedLayoutMaximiseItem();
@@ -518,10 +520,10 @@ export abstract class LayoutManager extends EventEmitter {
             * Content
             */
            // TODO ASB: save config of side panels too
-            if (this._groundPanelItems.main === undefined) {
+            if (this._groundPanelItems.mainPanel === undefined) {
                 throw new UnexpectedUndefinedError('LMTC18244');
             } else {
-                const groundContent = this._groundPanelItems.main.calculateConfigContent();
+                const groundContent = this._groundPanelItems.mainPanel.calculateConfigContent();
 
                 let rootItemConfig: ResolvedRootItemConfig | undefined;
                 if (groundContent.length !== 1) {
@@ -706,7 +708,7 @@ export abstract class LayoutManager extends EventEmitter {
         locationSelectors?: readonly LayoutManager.LocationSelector[]
     ): LayoutManager.Location | undefined {
         // TODO ASB: adding item could be at GroundItem level, with method on LayoutManager for adding to particular panel?
-        if (this._groundPanelItems.main === undefined) {
+        if (this._groundPanelItems.mainPanel === undefined) {
             throw new Error('Cannot add component before init');
         } else {
             if (locationSelectors === undefined) {
@@ -726,7 +728,7 @@ export abstract class LayoutManager extends EventEmitter {
                         addIdx = groundItem.addItem(itemConfig, location.index);
                         if (addIdx >= 0) {
                             // TODO ASB: should be able to add item at location in side panel? => new parameter to this method?
-                            parentItem = this._groundPanelItems.main.contentItems[0]; // was added to rootItem
+                            parentItem = this._groundPanelItems.mainPanel.contentItems[0]; // was added to rootItem
                         } else {
                             addIdx = 0; // was added as rootItem (which is the first and only ContentItem in GroundItem)
                         }
@@ -776,11 +778,11 @@ export abstract class LayoutManager extends EventEmitter {
      * Note that, if this layout is saved and reloaded, it will reload with the Component as a child of a Stack.
     */
     loadComponentAsRoot(itemConfig: ComponentItemConfig): void {
-        if (this._groundPanelItems.main === undefined) {
+        if (this._groundPanelItems.mainPanel === undefined) {
             throw new Error('Cannot add item before init');
         } else {
             // TODO ASB: should be able to load component as root in side panels too? See where this method called from...
-            this._groundPanelItems.main.loadComponentAsRoot(itemConfig);
+            this._groundPanelItems.mainPanel.loadComponentAsRoot(itemConfig);
         }
     }
 
@@ -800,13 +802,13 @@ export abstract class LayoutManager extends EventEmitter {
         this._height = height;
 
         if (this._isInitialised === true) {
-            if (this._groundPanelItems.main === undefined) {
+            if (this._groundPanelItems.mainPanel === undefined) {
                 throw new UnexpectedUndefinedError('LMUS18881');
             } else {
                 // TODO ASB: setSize: first need to resize panel grid, then call setSize on each (visible?) panel
                 //           Actually, relying on grid percent sizes for now. (re-visit when supporting re-sizing of panels - hopefully stick with percent sizes?)
                 // this._groundPanelItems.main.setSize(this._width, this._height);
-                this._groundPanelItems.main.setSize(undefined, undefined); // TODO ASB: should be something like 'update/refresh size'?
+                this._groundPanelItems.mainPanel.setSize(undefined, undefined); // TODO ASB: should be something like 'update/refresh size'?
 
                 if (this._maximisedStack) {
                     const { width, height } = getElementWidthAndHeight(this._containerElement);
@@ -831,10 +833,10 @@ export abstract class LayoutManager extends EventEmitter {
      */
     updateRootSize(): void {
         // TODO ASB: should update the size of side panels too?
-        if (this._groundPanelItems.main === undefined) {
+        if (this._groundPanelItems.mainPanel === undefined) {
             throw new UnexpectedUndefinedError('LMURS28881');
         } else {
-            this._groundPanelItems.main.updateSize();
+            this._groundPanelItems.mainPanel.updateSize();
         }
     }
 
@@ -897,10 +899,10 @@ export abstract class LayoutManager extends EventEmitter {
 
     findFirstComponentItemById(id: string): ComponentItem | undefined {
         // TODO ASB: should have option of which panel (main/side) to search within?
-        if (this._groundPanelItems.main === undefined) {
+        if (this._groundPanelItems.mainPanel === undefined) {
             throw new UnexpectedUndefinedError('LMFFCIBI82446');
         } else {
-            return this.findFirstContentItemTypeByIdRecursive(ItemType.component, id, this._groundPanelItems.main) as ComponentItem;
+            return this.findFirstContentItemTypeByIdRecursive(ItemType.component, id, this._groundPanelItems.mainPanel) as ComponentItem;
         }
     }
 
@@ -1245,7 +1247,7 @@ export abstract class LayoutManager extends EventEmitter {
     }
 
     /** @internal */
-    getArea(x: number, y: number): ContentItem.Area | null {
+    getArea(x: number, y: number): ContentItem.Area | null { // TODO ASB: rename? getDropZoneForPointerPosition ?
         let matchingArea = null;
         let smallestSurface = Infinity;
 
@@ -1269,68 +1271,13 @@ export abstract class LayoutManager extends EventEmitter {
 
     /** @internal */
     calculateItemAreas(): void {
-        const allContentItems = this.getAllContentItems();
-        /**
-         * If the last item is dragged out, highlight the entire container size to
-         * allow to re-drop it. this.ground.contentiItems.length === 0 at this point
-         *
-         * Don't include ground into the possible drop areas though otherwise since it
-         * will used for every gap in the layout, e.g. splitters
-         */
-        // TODO ASB: get areas (dropzones?) for each panel (move some of this logic to GroundItem?)
-        const groundItem = this._groundPanelItems.main;
-        if (groundItem === undefined) {
-            throw new UnexpectedUndefinedError('LMCIAR44365');
-        } else {
-            if (allContentItems.length === 1) {
-                // No root ContentItem (just Ground ContentItem)
-                const groundArea = groundItem.getElementArea();
-                if (groundArea === null) {
-                    throw new UnexpectedNullError('LMCIARA44365')
-                } else {
-                    this._itemAreas = [groundArea];
-                }
-                return;
-            } else {
-                if (groundItem.contentItems[0].isStack) {
-                    // if root is Stack, then split stack and sides of Layout are same, so skip sides
-                    this._itemAreas = [];
-                } else {
-                    // sides of layout
-                    this._itemAreas = groundItem.createSideAreas();
-                }
-
-                for (let i = 0; i < allContentItems.length; i++) {
-                    const stack = allContentItems[i];
-                    if (ContentItem.isStack(stack)) {
-                        const area = stack.getArea();
-
-                        if (area === null) {
-                            continue;
-                        } else {
-                            this._itemAreas.push(area);
-                            const stackContentAreaDimensions = stack.contentAreaDimensions;
-                            if (stackContentAreaDimensions === undefined) {
-                                throw new UnexpectedUndefinedError('LMCIASC45599');
-                            } else {
-                                const highlightArea = stackContentAreaDimensions.header.highlightArea
-                                const surface = (highlightArea.x2 - highlightArea.x1) * (highlightArea.y2 - highlightArea.y1);
-
-                                const header: ContentItem.Area = {
-                                    x1: highlightArea.x1,
-                                    x2: highlightArea.x2,
-                                    y1: highlightArea.y1,
-                                    y2: highlightArea.y2,
-                                    contentItem: stack,
-                                    surface,
-                                };
-                                this._itemAreas.push(header);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        this._itemAreas = [
+            ...this._groundPanelItems.mainPanel.getDropZoneAreas(),
+            ...this._groundPanelItems.leftPanel.getDropZoneAreas(),
+            ...this._groundPanelItems.topPanel.getDropZoneAreas(),
+            ...this._groundPanelItems.rightPanel.getDropZoneAreas(),
+            ...this._groundPanelItems.bottomPanel.getDropZoneAreas()
+        ];
     }
 
     /**
@@ -1340,10 +1287,10 @@ export abstract class LayoutManager extends EventEmitter {
      */
     private checkLoadedLayoutMaximiseItem() {
         // TODO ASB: should check side panels for maximised item too
-        if (this._groundPanelItems.main === undefined) {
+        if (this._groundPanelItems.mainPanel === undefined) {
             throw new UnexpectedUndefinedError('LMCLLMI43432');
         } else {
-            const configMaximisedItems = this._groundPanelItems.main.getConfigMaximisedItems();
+            const configMaximisedItems = this._groundPanelItems.mainPanel.getConfigMaximisedItems();
 
             if (configMaximisedItems.length > 0) {
                 let item = configMaximisedItems[0];
@@ -1372,10 +1319,10 @@ export abstract class LayoutManager extends EventEmitter {
         stack.element.insertAdjacentElement('afterend', this._maximisePlaceholder);
         
         // TODO ASB: maximiseStack: check where this called from - should it be in context of a GroundItem?
-        if (this._groundPanelItems.main === undefined) {
+        if (this._groundPanelItems.mainPanel === undefined) {
             throw new UnexpectedUndefinedError('LMMXI19993');
         } else {
-            this._groundPanelItems.main.element.prepend(stack.element);
+            this._groundPanelItems.mainPanel.element.prepend(stack.element);
             const { width, height } = getElementWidthAndHeight(this._containerElement);
             setElementWidth(stack.element, width);
             setElementHeight(stack.element, height);
@@ -1431,19 +1378,19 @@ export abstract class LayoutManager extends EventEmitter {
 
     }
 
-    /**
-     * Returns a flattened array of all content items,
-     * regardles of level or type
-     * @internal
-     */
-    private getAllContentItems() {
-        if (this._groundPanelItems.main === undefined) {
-            throw new UnexpectedUndefinedError('LMGACI13130');
-        } else {
-            // TODO ASB: get content from side panels too? (where is this used? - calculatItemAreas)
-            return this._groundPanelItems.main.getAllContentItems();
-        }
-    }
+    // /**
+    //  * Returns a flattened array of all content items,
+    //  * regardles of level or type
+    //  * @internal
+    //  */
+    // private getAllContentItems() {
+    //     if (this._groundPanelItems.main === undefined) {
+    //         throw new UnexpectedUndefinedError('LMGACI13130');
+    //     } else {
+    //         // TODO ASB: get content from side panels too? (where is this used? - calculatItemAreas)
+    //         return this._groundPanelItems.main.getAllContentItems();
+    //     }
+    // }
 
     /**
      * Binds to DOM/BOM events on init
@@ -1508,21 +1455,21 @@ export abstract class LayoutManager extends EventEmitter {
      */
     private adjustColumnsResponsive() {
         // TODO ASB: column responsiveness should be done per GroundItem
-        if (this._groundPanelItems.main === undefined) {
+        if (this._groundPanelItems.mainPanel === undefined) {
             throw new UnexpectedUndefinedError('LMACR20883');
         } else {
             this._firstLoad = false;
             // If there is no min width set, or not content items, do nothing.
             if (this.useResponsiveLayout() &&
                 !this._updatingColumnsResponsive &&
-                this._groundPanelItems.main.contentItems.length > 0 &&
-                this._groundPanelItems.main.contentItems[0].isRow)
+                this._groundPanelItems.mainPanel.contentItems.length > 0 &&
+                this._groundPanelItems.mainPanel.contentItems[0].isRow)
             {
-                if (this._groundPanelItems.main === undefined || this._width === null) {
+                if (this._groundPanelItems.mainPanel === undefined || this._width === null) {
                     throw new UnexpectedUndefinedError('LMACR77412');
                 } else {
                     // If there is only one column, do nothing.
-                    const columnCount = this._groundPanelItems.main.contentItems[0].contentItems.length;
+                    const columnCount = this._groundPanelItems.mainPanel.contentItems[0].contentItems.length;
                     if (columnCount <= 1) {
                         return;
                     } else {
@@ -1539,7 +1486,7 @@ export abstract class LayoutManager extends EventEmitter {
                             const finalColumnCount = Math.max(Math.floor(this._width / minItemWidth), 1);
                             const stackColumnCount = columnCount - finalColumnCount;
 
-                            const rootContentItem = this._groundPanelItems.main.contentItems[0];
+                            const rootContentItem = this._groundPanelItems.mainPanel.contentItems[0];
                             const allStacks = this.getAllStacks();
                             if (allStacks.length === 0) {
                                 throw new AssertError('LMACRS77413')
@@ -1602,11 +1549,11 @@ export abstract class LayoutManager extends EventEmitter {
      */
     private getAllStacks() {
         // TODO ASB called by adjustColumnsResponsive => move to GroundItem
-        if (this._groundPanelItems.main === undefined) {
+        if (this._groundPanelItems.mainPanel === undefined) {
             throw new UnexpectedUndefinedError('LMFASC52778');
         } else {
             const stacks: Stack[] = [];
-            this.findAllStacksRecursive(stacks, this._groundPanelItems.main);
+            this.findAllStacksRecursive(stacks, this._groundPanelItems.mainPanel);
 
             return stacks;
         }
@@ -1615,10 +1562,10 @@ export abstract class LayoutManager extends EventEmitter {
     /** @internal */
     private findFirstContentItemType(type: ItemType): ContentItem | undefined {
         // TODO ASB: findFirstContentItemType should specify which panel or search all of them?
-        if (this._groundPanelItems.main === undefined) {
+        if (this._groundPanelItems.mainPanel === undefined) {
             throw new UnexpectedUndefinedError('LMFFCIT82446');
         } else {
-            return this.findFirstContentItemTypeRecursive(type, this._groundPanelItems.main);
+            return this.findFirstContentItemTypeRecursive(type, this._groundPanelItems.mainPanel);
         }
     }
 
@@ -1778,7 +1725,7 @@ export abstract class LayoutManager extends EventEmitter {
                 }
             }
             case LayoutManager.LocationSelector.TypeId.Empty: {
-                if (this._groundPanelItems.main === undefined) {
+                if (this._groundPanelItems.mainPanel === undefined) {
                     throw new UnexpectedUndefinedError('LMFLRIF18244');
                 } else {
                     // TODO ASB consider if this should be moved out to GroundItem,
@@ -1787,7 +1734,7 @@ export abstract class LayoutManager extends EventEmitter {
                         return undefined;
                     } else {
                         if (selectorIndex === undefined || selectorIndex === 0)
-                            return { parentItem: this._groundPanelItems.main, index: 0 };
+                            return { parentItem: this._groundPanelItems.mainPanel, index: 0 };
                         else {
                             return undefined;
                         }
@@ -1796,13 +1743,13 @@ export abstract class LayoutManager extends EventEmitter {
             }
             case LayoutManager.LocationSelector.TypeId.Root: {
                 // TODO ASB: 'find(root) - let it implicitly mean 'main' root?  Provide a way to mean side panel?
-                if (this._groundPanelItems.main === undefined) {
+                if (this._groundPanelItems.mainPanel === undefined) {
                     throw new UnexpectedUndefinedError('LMFLF18244');
                 } else {
-                    const groundContentItems = this._groundPanelItems.main.contentItems;
+                    const groundContentItems = this._groundPanelItems.mainPanel.contentItems;
                     if (groundContentItems.length === 0) {
                         if (selectorIndex === undefined || selectorIndex === 0)
-                            return { parentItem: this._groundPanelItems.main, index: 0 };
+                            return { parentItem: this._groundPanelItems.mainPanel, index: 0 };
                         else {
                             return undefined;
                         }

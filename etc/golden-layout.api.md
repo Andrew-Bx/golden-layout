@@ -1609,8 +1609,6 @@ export class Stack extends ComponentParentableItem {
     // (undocumented)
     get childElementContainer(): HTMLElement;
     // @internal (undocumented)
-    get contentAreaDimensions(): Stack.ContentAreaDimensions | undefined;
-    // @internal (undocumented)
     destroy(): void;
     // @internal (undocumented)
     dock(mode?: boolean): void;
@@ -1625,7 +1623,7 @@ export class Stack extends ComponentParentableItem {
     // @deprecated (undocumented)
     getActiveContentItem(): ContentItem | null;
     // @internal (undocumented)
-    getArea(): ContentItem.Area | null;
+    getAreas(): ContentItem.Area[] | null;
     // (undocumented)
     get headerLeftRightSided(): boolean;
     // (undocumented)

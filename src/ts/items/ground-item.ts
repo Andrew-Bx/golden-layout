@@ -9,6 +9,7 @@ import { ComponentItem } from './component-item';
 import { ComponentParentableItem } from './component-parentable-item';
 import { ContentItem } from './content-item';
 import { RowOrColumn } from './row-or-column';
+import { Stack } from './stack';
 
 /**
  * GroundItem is the ContentItem whose one child is the root ContentItem (Root is planted in Ground).
@@ -21,7 +22,7 @@ export class GroundItem extends ComponentParentableItem {
     private readonly _containerElement: HTMLElement;
 
     constructor(layoutManager: LayoutManager, rootItemConfig: ResolvedRootItemConfig | undefined, containerElement: HTMLElement) {
-      
+
         super(layoutManager, ResolvedGroundItemConfig.create(rootItemConfig), null, GroundItem.createElement(document));
 
         this.isGround = true;
@@ -43,7 +44,7 @@ export class GroundItem extends ComponentParentableItem {
         this.initContentItems();
     }
 
-    /** 
+    /**
      * Loads a new Layout
      * Internal only.  To load a new layout with API, use {@link (LayoutManager:class).loadLayout}
      */
@@ -62,7 +63,7 @@ export class GroundItem extends ComponentParentableItem {
      * Internal only.  To load a add with API, use {@link (LayoutManager:class).addItem}
      * @returns -1 if added as root otherwise index in root ContentItem's content
      */
-    addItem(itemConfig: RowOrColumnItemConfig | StackItemConfig | ComponentItemConfig, 
+    addItem(itemConfig: RowOrColumnItemConfig | StackItemConfig | ComponentItemConfig,
         index?: number
     ): number {
         this.layoutManager.checkMinimiseMaximisedStack();
@@ -70,7 +71,7 @@ export class GroundItem extends ComponentParentableItem {
         const resolvedItemConfig = ItemConfig.resolve(itemConfig);
         let parent: ContentItem;
         if (this.contentItems.length > 0) {
-            parent = this.contentItems[0];          
+            parent = this.contentItems[0];
         } else {
             parent = this;
         }
@@ -135,7 +136,7 @@ export class GroundItem extends ComponentParentableItem {
     }
 
     /** @internal */
-    setSize(width: number, height: number): void {
+    setSize(width?: number, height?: number): void {
         if (width === undefined || height === undefined) {
             this.updateSize(); // For backwards compatibility with v1.x API
         } else {
@@ -162,30 +163,77 @@ export class GroundItem extends ComponentParentableItem {
         this.updateContentItemsSize();
     }
 
-    createSideAreas(): GroundItem.Area[] {
-        const areaSize = 50;
-
-        const oppositeSides = GroundItem.Area.oppositeSides;
-        const result = new Array<GroundItem.Area>(Object.keys(oppositeSides).length);
-        let idx = 0;
-
-        for (const key in oppositeSides) {
-            const side = key as keyof GroundItem.Area.Sides;
-            const area = this.getElementArea() as GroundItem.Area;
-            if (area === null) {
-                throw new UnexpectedNullError('RCSA77553');
-            } else {
-                area.side = side;
-                if (oppositeSides[side][1] === '2' )
-                    area[side] = area[oppositeSides[side]] - areaSize;
-                else
-                    area[side] = area[oppositeSides[side]] + areaSize;
-                area.surface = (area.x2 - area.x1) * (area.y2 - area.y1);
-                result[idx++] = area;
-            }
+    /**
+     * Get the areas onto which a dragged item could be dropped
+     *  @internal
+     */
+    getDropZoneAreas(): ContentItem.Area[] {
+        const dropZones: ContentItem.Area[] = [];
+        /**
+         * If the last item is dragged out, highlight the entire GroundItem to
+         * allow to re-dropping on it. this.contentiItems.length === 0 at this point
+         *
+         * But don't include the ground item iself into the possible drop areas otherwise it
+         * will used for every gap in the layout, e.g. splitters
+         */
+        if (this.contentItems.length === 0) {
+            // just the Ground ContentItem
+            const groundArea = this.getElementArea();
+            dropZones.push(groundArea);
+            return dropZones; // TODO ASB avoid early returns?
         }
 
-        return result;
+        const rootItem = this.contentItems[0];
+        if (rootItem.isStack) {
+            // if root item is Stack, then split Stack and sides of GroundItem are same, so skip sides
+        } else if (rootItem.isRow) {
+            dropZones.push(...this.getTopBottomEdgeDropZones());
+        } else if (rootItem.isColumn) {
+            dropZones.push(...this.getLeftRightEdgeDropZones());
+        }
+
+        const allContentItems = this.getAllContentItems();
+        const stackItems = allContentItems.filter((item) => ContentItem.isStack(item)) as Stack[];
+        for (const stack of stackItems) {
+            const areas = stack.getAreas();
+
+            if (areas === null) {
+                continue;
+            }
+
+            dropZones.push(...areas);
+        }
+
+        return dropZones;
+    }
+
+    /** @internal */
+    getLeftRightEdgeDropZones(): readonly [GroundItem.Area, GroundItem.Area] {
+        const dropZones = [this.createDropZoneForSide('x1'), this.createDropZoneForSide('x2')] as const;
+        return dropZones;
+    }
+    /** @internal */
+    getTopBottomEdgeDropZones(): readonly [GroundItem.Area, GroundItem.Area] {
+        const dropZones = [this.createDropZoneForSide('y1'), this.createDropZoneForSide('y2')] as const;
+        return dropZones;
+    }
+
+    private createDropZoneForSide(side: keyof GroundItem.Area.Sides): GroundItem.Area {
+        const areaSize = 50;
+
+        const area = this.getElementArea() as GroundItem.Area;
+        if (area === null) {
+            throw new UnexpectedNullError('RCSA77553');
+        }
+        area.side = side;
+
+        const oppositeSides = GroundItem.Area.oppositeSides;
+        if (oppositeSides[side][1] === '2' )
+            area[side] = area[oppositeSides[side]] - areaSize;
+        else
+            area[side] = area[oppositeSides[side]] + areaSize;
+        area.surface = (area.x2 - area.x1) * (area.y2 - area.y1);
+        return area;
     }
 
     highlightDropZone(x: number, y: number, area: AreaLinkedRect): void {
@@ -209,7 +257,7 @@ export class GroundItem extends ComponentParentableItem {
             this.addChild(contentItem);
         } else {
             /*
-             * If the contentItem that's being dropped is not dropped on a Stack (cases which just passed above and 
+             * If the contentItem that's being dropped is not dropped on a Stack (cases which just passed above and
              * which would wrap the contentItem in a Stack) we need to check whether contentItem is a RowOrColumn.
              * If it is, we need to re-wrap it in a Stack like it was when it was dragged by its Tab (it was dragged!).
              */
@@ -257,6 +305,11 @@ export class GroundItem extends ComponentParentableItem {
         throw new AssertError('GIVD87732');
     }
 
+    /**
+     * Returns a flattened array of all content items,
+     * regardles of level or type
+     * @internal
+     */
     getAllContentItems(): ContentItem[] {
         const result: ContentItem[] = [this];
         this.deepGetAllContentItems(this.contentItems, result);
@@ -375,7 +428,7 @@ export namespace GroundItem {
             x1: 'x2',
         };
     }
-    
+
     export function createElement(document: Document): HTMLDivElement {
         const element = document.createElement('div');
         // TODO ASB: breaking backwards compatibility? (are any of the css classes considered part of public API?)

@@ -65,8 +65,6 @@ export class Stack extends ComponentParentableItem {
     /** @internal */
     get docker(): Stack.Docker { return this._docker; }
     /** @internal */
-    get contentAreaDimensions(): Stack.ContentAreaDimensions | undefined { return this._contentAreaDimensions; }
-    /** @internal */
     get initialWantMaximise(): boolean { return this._initialWantMaximise; }
     get isMaximised(): boolean { return this === this.layoutManager.maximisedStack; }
 
@@ -202,12 +200,12 @@ export class Stack extends ComponentParentableItem {
                 this._header.updateTabSizes();
             }
         }
-        
+
         this._header.updateClosability();
 		if (this._stackParent.isRow || this._stackParent.isColumn) {
 			this._stackParent.validateDocking();
         }
-        
+
         this.initContentItems();
     }
 
@@ -328,7 +326,7 @@ export class Stack extends ComponentParentableItem {
         if(index !== undefined && index > this.contentItems.length){
             index -= 1;
             throw new AssertError('SAC99728'); // undisplayChild() removed so this condition should no longer occur
-        }        
+        }
 
         if (!(contentItem instanceof ComponentItem)) {
             throw new AssertError('SACC88532'); // Stacks can only have Component children
@@ -360,7 +358,7 @@ export class Stack extends ComponentParentableItem {
             }
             if (!stackWillBeDeleted) {
                 // At this point we're already sure we have at least one content item left *after*
-                // removing contentItem, so we can safely assume index 1 is a valid one if 
+                // removing contentItem, so we can safely assume index 1 is a valid one if
                 // the index of contentItem is 0, otherwise we just use the previous content item.
                 const newActiveComponentIdx = index === 0 ? 1 : index - 1;
                 this.setActiveComponentItem(this.contentItems[newActiveComponentIdx] as ComponentItem, false);
@@ -518,7 +516,7 @@ export class Stack extends ComponentParentableItem {
 
 
         /*
-         * If the contentItem that's being dropped is not dropped on a Stack (cases which just passed above and 
+         * If the contentItem that's being dropped is not dropped on a Stack (cases which just passed above and
          * which would wrap the contentItem in a Stack) we need to check whether contentItem is a RowOrColumn.
          * If it is, we need to re-wrap it in a Stack like it was when it was dragged by its Tab (it was dragged!).
          */
@@ -569,18 +567,19 @@ export class Stack extends ComponentParentableItem {
      * @internal
      */
     highlightDropZone(x: number, y: number): void {
-        for (const key in this._contentAreaDimensions) {
-            const segment = key as Stack.Segment;
-            const area = this._contentAreaDimensions[segment].hoverArea;
+        for (const [segment, contentArea] of Object.entries(this._contentAreaDimensions)) {
+            if (!contentArea) {
+                continue;
+            }
+            const area = contentArea.hoverArea;
 
             if (area.x1 < x && area.x2 > x && area.y1 < y && area.y2 > y) {
-
                 if (segment === Stack.Segment.Header) {
                     this._dropSegment = Stack.Segment.Header;
                     this.highlightHeaderDropZone(this._header.leftRightSided ? y : x);
                 } else {
                     this.resetHeaderDropZone();
-                    this.highlightBodyDropZone(segment);
+                    this.highlightBodyDropZone(segment as Stack.Segment);
                 }
 
                 return;
@@ -588,12 +587,38 @@ export class Stack extends ComponentParentableItem {
         }
     }
 
+    // TODO ASB: rename? getDropZones? (With side-effect...)
     /** @internal */
-    getArea(): ContentItem.Area | null {
+    getAreas(): ContentItem.Area[] | null {
         if (this.element.style.display === 'none') {
             return null;
         }
 
+        const areas: ContentItem.Area[] = [];
+
+        // TODO ASB: why doesn't this method just return an Area for each of the would-be content item areas?
+        // seems like rather than doing this up-front, this._contentAreaDimensions is used onDrop?
+        this.updateContentItemAreas();
+
+        const bodyArea = super.getElementArea(this.element);
+        areas.push(bodyArea);
+
+        const headerHighlightArea = this._contentAreaDimensions.header.highlightArea
+        const surface = (headerHighlightArea.x2 - headerHighlightArea.x1) * (headerHighlightArea.y2 - headerHighlightArea.y1);
+        const headerArea: ContentItem.Area = {
+            x1: headerHighlightArea.x1,
+            x2: headerHighlightArea.x2,
+            y1: headerHighlightArea.y1,
+            y2: headerHighlightArea.y2,
+            contentItem: this,
+            surface,
+        };
+        areas.push(headerArea);
+
+        return areas;
+    }
+
+    private updateContentItemAreas(): void {
         const headerArea = super.getElementArea(this._header.element);
         const contentArea = super.getElementArea(this._childElementContainer);
         if (headerArea === null || contentArea === null) {
@@ -638,8 +663,6 @@ export class Stack extends ComponentParentableItem {
                     y2: contentArea.y2
                 }
             };
-
-            return super.getElementArea(this.element);
         } else {
             this._contentAreaDimensions.left = {
                 hoverArea: {
@@ -701,7 +724,6 @@ export class Stack extends ComponentParentableItem {
                 }
             };
 
-            return super.getElementArea(this.element);
         }
     }
 
@@ -864,7 +886,7 @@ export class Stack extends ComponentParentableItem {
 
         //if ([Side.right, Side.bottom].includes(this._header.side)) {
         //    // move the header behind the content.
-        //    this.element.appendChild(this._header.element);  
+        //    this.element.appendChild(this._header.element);
         //}
         this.updateSize();
     }
@@ -873,16 +895,18 @@ export class Stack extends ComponentParentableItem {
     private highlightBodyDropZone(segment: Stack.Segment): void {
         if (this._contentAreaDimensions === undefined) {
             throw new UnexpectedUndefinedError('SHBDZC82265');
-        } else {
-            const highlightArea = this._contentAreaDimensions[segment].highlightArea;
-            const dropTargetIndicator = this.layoutManager.dropTargetIndicator;
-            if (dropTargetIndicator === null) {
-                throw new UnexpectedNullError('SHBDZD96110');
-            } else {
-                dropTargetIndicator.highlightArea(highlightArea);
-                this._dropSegment = segment;
-            }
         }
+        const contentArea = this._contentAreaDimensions[segment];
+        if (contentArea === undefined) {
+            throw new UnexpectedUndefinedError('SHBDZC82266');
+        }
+        const highlightArea = contentArea.highlightArea;
+        const dropTargetIndicator = this.layoutManager.dropTargetIndicator;
+        if (dropTargetIndicator === null) {
+            throw new UnexpectedNullError('SHBDZD96110');
+        }
+        dropTargetIndicator.highlightArea(highlightArea);
+        this._dropSegment = segment;
     }
 
     /** @internal */
@@ -1005,8 +1029,13 @@ export namespace Stack {
 
     /** @internal */
     export type ContentAreaDimensions = {
-        [segment: string]: ContentAreaDimension;
-    };
+        [Segment.Header]: ContentAreaDimension,
+        [Segment.Body]?: ContentAreaDimension,
+        [Segment.Left]?: ContentAreaDimension,
+        [Segment.Top]?: ContentAreaDimension,
+        [Segment.Right]?: ContentAreaDimension,
+        [Segment.Bottom]?: ContentAreaDimension
+    }
 
     /** @internal */
     export interface Docker {
@@ -1027,5 +1056,5 @@ export namespace Stack {
         element.classList.add(DomConstants.ClassName.Item);
         element.classList.add(DomConstants.ClassName.Stack);
         return element;
-    } 
+    }
 }

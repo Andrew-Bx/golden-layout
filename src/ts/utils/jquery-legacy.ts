@@ -8,7 +8,8 @@ export interface JQueryOffset {
 }
 
 /** @internal */
-export function getJQueryOffset(element: HTMLElement): JQueryOffset {
+export function getJQueryOffset(element: HTMLElement): JQueryOffset { // TODO ASB: rename getBodyOffset? and return LeftAndTop ?
+    //                                                                   (hmm.. top and left having different meanings there?)
     const rect = element.getBoundingClientRect();
     return {
         top: rect.top + document.body.scrollTop,

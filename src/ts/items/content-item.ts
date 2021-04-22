@@ -320,7 +320,7 @@ export abstract class ContentItem extends EventEmitter {
      * Returns the area the component currently occupies
      * @internal
      */
-    getElementArea(element?: HTMLElement): ContentItem.Area | null {
+    getElementArea(element?: HTMLElement): ContentItem.Area {
         element = element ?? this._element;
 
         const offset = getJQueryOffset(element);
@@ -489,7 +489,8 @@ export abstract class ContentItem extends EventEmitter {
 export namespace ContentItem {
     /** @internal */
     export interface Area extends AreaLinkedRect {
-        surface: number;
+        surface: number; // TODO ASB: really want to call this 'area' (or surfaceArea) since its the numeric quantity (width x height)
+                         // but would look odd because interface is called Area. Maybe can rename interface to DropZone if that's all it's really used for?
         contentItem: ContentItem;
     }
 }
