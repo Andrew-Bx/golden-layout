@@ -598,6 +598,7 @@ export class Stack extends ComponentParentableItem {
 
         // TODO ASB: why doesn't this method just return an Area for each of the would-be content item areas?
         // seems like rather than doing this up-front, this._contentAreaDimensions is used onDrop?
+        // - hmm, maybe because highlightHeaderDropZone is a bit dynamic, i.e. shifting tabs around
         this.updateContentItemAreas();
 
         const bodyArea = super.getElementArea(this.element);

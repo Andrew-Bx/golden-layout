@@ -155,8 +155,7 @@ export class GroundItem extends ComponentParentableItem {
     }
 
     /**
-     * Adds a Root ContentItem.
-     * Internal only.  To replace Root ContentItem with API, use {@link (LayoutManager:class).updateRootSize}
+     * @internal  To update size with API, use {@link (LayoutManager:class).updateRootSize}
      */
     updateSize(): void {
         this.updateNodeSize();
@@ -360,6 +359,7 @@ export class GroundItem extends ComponentParentableItem {
          * GroundItem can be empty
          */
         if (this.contentItems.length > 0) {
+            // TODO ASB: hopefully ultimately don't need to do this; root item can just have width and height 100% (of ground item)?
             setElementWidth(this.contentItems[0].element, width);
             setElementHeight(this.contentItems[0].element, height);
         }

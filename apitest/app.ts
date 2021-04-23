@@ -143,6 +143,19 @@ export class App {
         this._reloadSavedLayoutButton.disabled = true;
         this._reloadSavedLayoutButton.addEventListener('click', this._reloadSavedLayoutButtonClickListener, { passive: true });
 
+        let bottomPanelVisible = true;
+        const toggleBottomPanelButton = document.querySelector('#toggleBottomPanelButton') as HTMLButtonElement;
+        toggleBottomPanelButton.onclick = () => {
+            if (bottomPanelVisible) {
+                this._goldenLayout.setPanelHeights(33.33, 66.66, 0);
+                bottomPanelVisible = false;
+            }
+            else {
+                this._goldenLayout.setPanelHeights(25, 50, 25);
+                bottomPanelVisible = true;
+            }
+        }
+
         const bubbleClickCountSpan = document.querySelector('#bubbleClickCountSpan') as HTMLSpanElement;
         if (bubbleClickCountSpan === null) {
             throw Error('Could not find bubbleClickCountSpan');

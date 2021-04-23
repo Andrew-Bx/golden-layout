@@ -1018,6 +1018,8 @@ export abstract class LayoutManager extends EventEmitter {
     setFocusedComponentItem(item: ComponentItem | undefined, suppressEvents?: boolean): void;
     // @internal
     setMaximisedStack(stack: Stack | undefined): void;
+    // (undocumented)
+    setPanelHeights(top: number, main: number, bottom: number): void;
     setSize(width: number, height: number): void;
     // @internal (undocumented)
     startComponentDrag(x: number, y: number, dragListener: DragListener, componentItem: ComponentItem, stack: Stack): void;

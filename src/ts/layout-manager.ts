@@ -143,6 +143,10 @@ export abstract class LayoutManager extends EventEmitter {
      * @public 
      */
     get eventHub(): EventHub { return this._eventHub; }
+    
+    // TODO ASB: rootItem was part of public API, so need to keep it, but mark as deprecated.
+    //   then need to check what to do with existing usages (now converted to mainPanelRootItem)
+    get rootItem() { return this.mainPanelRootItem; }
     get mainPanelRootItem(): ContentItem | undefined {
         const mainGroundItem = this._groundPanelItems.mainPanel;
         if (mainGroundItem === undefined) {
@@ -465,6 +469,11 @@ export abstract class LayoutManager extends EventEmitter {
         this._containerElement.appendChild(this._groundPanelItems.bottomPanel.element);
 
         this._containerElement.classList.add(DomConstants.ClassName.GoldenLayout);
+
+        // TODO ASB: grid row/column sizes should come from initial config
+        this._containerElement.style.gridTemplateRows = '25% 50% 25%';
+        this._containerElement.style.gridTemplateColumns = '25% 50% 25%';
+
         this._groundPanelItems.mainPanel.element.classList.add(DomConstants.ClassName.MainPanel);
         this._groundPanelItems.leftPanel.element.classList.add(DomConstants.ClassName.LeftPanel);
         this._groundPanelItems.topPanel.element.classList.add(DomConstants.ClassName.TopPanel);
@@ -477,6 +486,21 @@ export abstract class LayoutManager extends EventEmitter {
         this._isInitialised = true;
         this.adjustColumnsResponsive();
         this.emit('initialised');
+    }
+
+    setPanelHeights(top: number, main: number, bottom: number): void {
+        // expect top+main+bottom = 100  -- check/enforce this?
+
+        this._containerElement.style.gridTemplateRows = `${top}% ${main}% ${bottom}%`;
+        // eg to hide bottom panel: 33.33%/66.66%/0  (maybe provide convenience methods for show/hide of top/bottom?)
+
+        this._groundPanelItems.mainPanel.updateSize();
+        this._groundPanelItems.leftPanel.updateSize();
+        this._groundPanelItems.topPanel.updateSize();
+        this._groundPanelItems.rightPanel.updateSize();
+        this._groundPanelItems.bottomPanel.updateSize();
+        // TODO ASB: groundItem updateSize() should do nothing if panel not visible?
+        //  => also consider programmatically storing whether ground item is visible or not, and not returning drop zones for hidden ground item
     }
 
     /**
