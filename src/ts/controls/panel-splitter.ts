@@ -4,10 +4,10 @@ import { EventEmitter } from '../utils/event-emitter';
 import { numberToPixels } from '../utils/utils';
 
 /**
- * A draggable divider between component items in a row or column
+ * A draggable divider between panels
  *  @internal
  */
-export class Splitter {
+export class PanelSplitter {
     private _grabSize;
     private _dragListener: DragListener;
 
@@ -19,7 +19,7 @@ export class Splitter {
         this._grabSize = grabSize < this._size ? this._size : grabSize;
 
         this._element = document.createElement('div');
-        this._element.classList.add(DomConstants.ClassName.Splitter);
+        this._element.classList.add(DomConstants.ClassName.PanelSplitter);
         const dragHandleElement = document.createElement('div');
         dragHandleElement.classList.add(DomConstants.ClassName.DragHandle);
 
@@ -27,15 +27,21 @@ export class Splitter {
         const handleExcessPos = handleExcessSize / 2;
 
         if (this._isVertical) {
+            this._element.classList.add(DomConstants.ClassName.Vertical);
+            this.element.style.width = "100%";
+            this.element.style.height = numberToPixels(this._size);
+            this.element.style.top = numberToPixels(-this._size);
+
             dragHandleElement.style.top = numberToPixels(-handleExcessPos);
             dragHandleElement.style.height = numberToPixels(this._size + handleExcessSize);
-            this._element.classList.add(DomConstants.ClassName.Vertical);
-            this._element.style.height = numberToPixels(this._size);
         } else {
+            this._element.classList.add(DomConstants.ClassName.Horizontal);
+            this.element.style.height = "100%";
+            this.element.style.width = numberToPixels(this._size);
+            this.element.style.left = numberToPixels(-this._size);
+
             dragHandleElement.style.left = numberToPixels(-handleExcessPos);
             dragHandleElement.style.width = numberToPixels(this._size + handleExcessSize);
-            this._element.classList.add(DomConstants.ClassName.Horizontal);
-            this._element.style.width = numberToPixels(this._size);
         }
 
         this._element.appendChild(dragHandleElement);

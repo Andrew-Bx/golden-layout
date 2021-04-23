@@ -14,6 +14,7 @@ export namespace DomConstants {
         DropTabPlaceholder = 'lm_drop_tab_placeholder',
         DragHandle = 'lm_drag_handle',
         Splitter = 'lm_splitter',
+        PanelSplitter = 'lm_panelSplitter',
         Vertical = 'lm_vertical',
         Horizontal = 'lm_horizontal',
         Dragging = 'lm_dragging',

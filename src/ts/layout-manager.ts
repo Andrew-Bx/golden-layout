@@ -13,6 +13,7 @@ import { BrowserPopout } from './controls/browser-popout';
 import { DragProxy } from './controls/drag-proxy';
 import { DragSource } from './controls/drag-source';
 import { DropTargetIndicator } from './controls/drop-target-indicator';
+import { PanelSplitter } from './controls/panel-splitter';
 import { TransitionIndicator } from './controls/transition-indicator';
 import { ApiError, ConfigurationError } from './errors/external-error';
 import { AssertError, UnexpectedNullError, UnexpectedUndefinedError, UnreachableCaseError } from './errors/internal-error';
@@ -32,6 +33,7 @@ import { ItemType, JsonValue, Rect, ResponsiveMode } from './utils/types';
 import {
     deepExtendValue,
     getElementWidthAndHeight,
+    numberToPixels,
     removeFromArray,
     setElementHeight,
     setElementWidth
@@ -114,7 +116,7 @@ export abstract class LayoutManager extends EventEmitter {
     /**
      * If a new component is required and:
      * 1. a component type with corresponding name is not registered, and
-     * 2. a  
+     * 2. a
      * This callback should return a constructor for a component based on a config.
      * This function will be called if a component type with the required name is not already registered.
      * It is recommended that applications use the {@link (LayoutManager:class).getComponentEvent} and
@@ -143,7 +145,7 @@ export abstract class LayoutManager extends EventEmitter {
      * @public 
      */
     get eventHub(): EventHub { return this._eventHub; }
-    
+
     // TODO ASB: rootItem was part of public API, so need to keep it, but mark as deprecated.
     //   then need to check what to do with existing usages (now converted to mainPanelRootItem)
     get rootItem() { return this.mainPanelRootItem; }
@@ -171,7 +173,7 @@ export abstract class LayoutManager extends EventEmitter {
     * @param container - A Dom HTML element. Defaults to body
     * @internal
     */
-    constructor(parameters: LayoutManager.ConstructorParameters) {        
+    constructor(parameters: LayoutManager.ConstructorParameters) {
         super();
 
         let layoutConfig = parameters.layoutConfig;
@@ -208,6 +210,7 @@ export abstract class LayoutManager extends EventEmitter {
             globalThis.removeEventListener('beforeunload', this._windowUnloadListener);
             for (const groundItem of Object.values(this._groundPanelItems)) {
                 groundItem?.destroy();
+                // TODO ASB: anything else to destroy, eg splitters?
             }
             this._tabDropPlaceholder.remove();
             if (this._dropTargetIndicator !== null) {
@@ -264,10 +267,10 @@ export abstract class LayoutManager extends EventEmitter {
         } else {
             if (componentConstructorOrFactoryFtn.hasOwnProperty('prototype')) {
                 const componentConstructor = componentConstructorOrFactoryFtn as LayoutManager.ComponentConstructor;
-                this.registerComponentConstructor(name, componentConstructor);   
+                this.registerComponentConstructor(name, componentConstructor);
             } else {
                 const componentFactoryFtn = componentConstructorOrFactoryFtn as LayoutManager.ComponentFactoryFunction;
-                this.registerComponentFactoryFunction(name, componentFactoryFtn);   
+                this.registerComponentFactoryFunction(name, componentFactoryFtn);
             }
         }
     }
@@ -344,7 +347,7 @@ export abstract class LayoutManager extends EventEmitter {
     }
 
     /**
-     * Returns a previously registered component instantiator.  Attempts to utilize registered 
+     * Returns a previously registered component instantiator.  Attempts to utilize registered
      * component type by first, then falls back to the component constructor callback function (if registered).
      * If neither gets an instantiator, then returns `undefined`.
      * Note that `undefined` will return if config.componentType is not a string
@@ -470,6 +473,12 @@ export abstract class LayoutManager extends EventEmitter {
 
         this._containerElement.classList.add(DomConstants.ClassName.GoldenLayout);
 
+        // TODO ASB: get panel splitter sizes from config?
+        const panelSplittterSize = 5;
+        const panelSplitterGrabSize = 10;
+
+        this._containerElement.style.gap = numberToPixels(panelSplittterSize);
+        
         // TODO ASB: grid row/column sizes should come from initial config
         this._containerElement.style.gridTemplateRows = '25% 50% 25%';
         this._containerElement.style.gridTemplateColumns = '25% 50% 25%';
@@ -479,6 +488,33 @@ export abstract class LayoutManager extends EventEmitter {
         this._groundPanelItems.topPanel.element.classList.add(DomConstants.ClassName.TopPanel);
         this._groundPanelItems.rightPanel.element.classList.add(DomConstants.ClassName.RightPanel);
         this._groundPanelItems.bottomPanel.element.classList.add(DomConstants.ClassName.BottomPanel);
+
+        const leftSplitter = new PanelSplitter(false, panelSplittterSize, panelSplitterGrabSize);
+        const topSplitter = new PanelSplitter(true, panelSplittterSize, panelSplitterGrabSize);
+        const rightSplitter = new PanelSplitter(false, panelSplittterSize, panelSplitterGrabSize);
+        const bottomSplitter = new PanelSplitter(true, panelSplittterSize, panelSplitterGrabSize);
+
+        // based on currently hard-coded grid-template-areas:
+        //   "leftPanel topPanel  rightPanel"
+        //   "leftPanel mainPanel rightPanel"
+        //   "bottomPanel bottomPanel bottomPanel"
+        leftSplitter.element.style.gridColumn = "2/2";
+        leftSplitter.element.style.gridRow = "1/3";
+        leftSplitter.element.style.backgroundColor = 'red'; // TODO ASB: testing only!
+        topSplitter.element.style.gridColumn = "2/3";
+        topSplitter.element.style.gridRow = "2/2";
+        topSplitter.element.style.backgroundColor = 'blue'; // TODO ASB: testing only!
+        rightSplitter.element.style.gridColumn = "3/3";
+        rightSplitter.element.style.gridRow = "1/3";
+        rightSplitter.element.style.backgroundColor = 'purple'; // TODO ASB: testing only!
+        bottomSplitter.element.style.gridColumn = "1/4";
+        bottomSplitter.element.style.gridRow = "3/3";
+        bottomSplitter.element.style.backgroundColor = 'green'; // TODO ASB: testing only!
+
+        this._containerElement.appendChild(leftSplitter.element);
+        this._containerElement.appendChild(topSplitter.element);
+        this._containerElement.appendChild(rightSplitter.element);
+        this._containerElement.appendChild(bottomSplitter.element);
 
         this.checkLoadedLayoutMaximiseItem();
 
@@ -554,7 +590,7 @@ export abstract class LayoutManager extends EventEmitter {
                     rootItemConfig = undefined;
                 } else {
                     rootItemConfig = groundContent[0];
-                }                
+                }
 
                 /*
                 * Retrieve config for subwindows
@@ -573,7 +609,7 @@ export abstract class LayoutManager extends EventEmitter {
                     header: ResolvedLayoutConfig.Header.createCopy(this.layoutConfig.header),
                     resolved: true,
                 }
-        
+
                 return config;
             }
         }
@@ -665,7 +701,7 @@ export abstract class LayoutManager extends EventEmitter {
             componentState,
             title,
         };
-        
+
         return this.addItemAtLocation(itemConfig, locationSelectors);
     }
 
@@ -1037,7 +1073,7 @@ export abstract class LayoutManager extends EventEmitter {
     /** @internal */
     createPopoutFromPopoutLayoutConfig(config: ResolvedPopoutLayoutConfig): BrowserPopout {
         const configWindow = config.window;
-        const initialWindow: Rect = { 
+        const initialWindow: Rect = {
             left: configWindow.left ?? (globalThis.screenX || globalThis.screenLeft + 20),
             top: configWindow.top ?? (globalThis.screenY || globalThis.screenTop + 20),
             width: configWindow.width ?? 500,
@@ -1087,7 +1123,7 @@ export abstract class LayoutManager extends EventEmitter {
 		removeFromArray(dragSource, this._dragSources );
 		dragSource.destroy();
     }
-    
+
     /** @internal */
     startComponentDrag(x: number, y: number, dragListener: DragListener, componentItem: ComponentItem, stack: Stack): void {
         new DragProxy(
@@ -1175,7 +1211,7 @@ export abstract class LayoutManager extends EventEmitter {
         }
     }
 
-    /** 
+    /**
      * This should only be called from stack component.
      * Stack will look after docking processing associated with maximise/minimise
      * @internal
@@ -1253,7 +1289,7 @@ export abstract class LayoutManager extends EventEmitter {
 			this._maximisedStack = undefined;
 		}
     }
-    
+
     /**
      * This method is used to get around sandboxed iframe restrictions.
      * If 'allow-top-navigation' is not specified in the iframe's 'sandbox' attribute
@@ -1341,7 +1377,7 @@ export abstract class LayoutManager extends EventEmitter {
         stack.on('beforeItemDestroyed', this._maximisedStackBeforeDestroyedListener);
         stack.element.classList.add(DomConstants.ClassName.Maximised);
         stack.element.insertAdjacentElement('afterend', this._maximisePlaceholder);
-        
+
         // TODO ASB: maximiseStack: check where this called from - should it be in context of a GroundItem?
         if (this._groundPanelItems.mainPanel === undefined) {
             throw new UnexpectedUndefinedError('LMMXI19993');
@@ -1839,7 +1875,7 @@ export namespace LayoutManager {
         factoryFunction: ComponentFactoryFunction | undefined;
     }
 
-    /** 
+    /**
      * Specifies a location of a ContentItem without referencing the content item.
      * Used to specify where a new item is to be added
      * @public

@@ -10,6 +10,11 @@ export interface Layout {
 }
 
 const miniRowConfig: LayoutConfig = {
+    // TODO ASB: experimenting; need to make sure similar works with panel splitters
+    // dimensions: {
+    //     borderWidth: 2,
+    //     borderGrabWidth: 15
+    // },
     root: {
         type: ItemType.row,
         content: [

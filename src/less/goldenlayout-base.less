@@ -3,7 +3,7 @@
 // can also be developed using SCSS.
 // All changes to base style should be done in goldenlayout-base.less.
 // Do NOT make changes directly in goldenlayout-base.scss.  goldenlayout-base.scss should only be updated by
-// running the npm script "update-scss"
+// running the npm script "update:scss"
 // Make sure that less code in goldenlayout.base.less can be correctly correctly converted to scss with less2sass (ie keep it basic)
 
 // Width variables (appears count calculates by raw css)
@@ -27,6 +27,7 @@
 .lm_goldenlayout {
   // TODO ASB: should we really be applying styles to root element (provided by consumer), or should we create our own 'root' element?
   display: grid;
+  position: relative;
 //   grid-template-columns: [first] 40px [line2] 50px [line3] auto [col4-start] 50px [five] 40px [end];
 //   grid-template-rows: [row1-start] 25% [row1-end] 100px [third-line] auto [last-line];
   grid-template-areas: 
@@ -87,6 +88,11 @@
 
 .lm_maximise_placeholder {
   display: none;
+}
+
+// Separator between panels
+.lm_panelSplitter {
+  position: absolute;
 }
 
 // Separator line (handle to change pane size)
