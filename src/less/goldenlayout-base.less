@@ -93,6 +93,19 @@
 // Separator between panels
 .lm_panelSplitter {
   position: absolute;
+
+  &.lm_vertical {
+    .lm_drag_handle {
+      cursor: ns-resize;
+    }
+  }
+
+  &.lm_horizontal {
+    .lm_drag_handle {
+      height: 100%;
+      cursor: ew-resize;
+    }
+  }
 }
 
 // Separator line (handle to change pane size)
