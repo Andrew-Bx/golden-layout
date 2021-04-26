@@ -144,14 +144,47 @@ export class App {
         this._reloadSavedLayoutButton.addEventListener('click', this._reloadSavedLayoutButtonClickListener, { passive: true });
 
         let bottomPanelVisible = true;
+        let bottomPanelSizeWhenVisible: number|undefined;
         const toggleBottomPanelButton = document.querySelector('#toggleBottomPanelButton') as HTMLButtonElement;
         toggleBottomPanelButton.onclick = () => {
+            const panelSizes = this._goldenLayout.getPanelGridRowColumnSizes();
+            // keeping top and main in same proportion:
+            // if (bottomPanelVisible) {
+            //     const topAndMainTotalHeight = panelSizes.topPanel.height + panelSizes.mainPanel.height;
+            //     const topPanelNewHeight = (panelSizes.topPanel.height/topAndMainTotalHeight) * 100;
+            //     const mainPanelNewHeight = (panelSizes.mainPanel.height/topAndMainTotalHeight) * 100;
+            //     this._goldenLayout.setPanelHeights(topPanelNewHeight, mainPanelNewHeight, 0);
+            //     bottomPanelVisible = false;
+            //     bottomPanelSizeWhenVisible = panelSizes.bottomPanel.height;
+            // }
+            // else {
+            //     if (bottomPanelSizeWhenVisible === undefined) {
+            //         throw new Error('Expected bottom panel size to be recorded');
+            //     }
+            //     const topPanelNewHeight = panelSizes.topPanel.height * (100 - bottomPanelSizeWhenVisible) / 100;
+            //     const mainPanelNewHeight = panelSizes.mainPanel.height * (100 - bottomPanelSizeWhenVisible) / 100;
+            //     this._goldenLayout.setPanelHeights(topPanelNewHeight, mainPanelNewHeight, bottomPanelSizeWhenVisible);
+            //     bottomPanelVisible = true;
+            // }
+            
+            // when bottom panel hidden, only add/remove size to the main panel (rather than keeping top and main in same proportion)
             if (bottomPanelVisible) {
-                this._goldenLayout.setPanelHeights(33.33, 66.66, 0);
+                const mainPanelNewHeight = panelSizes.mainPanel.height + panelSizes.bottomPanel.height
+                this._goldenLayout.setPanelHeights(panelSizes.topPanel.height, mainPanelNewHeight, 0);
                 bottomPanelVisible = false;
+                bottomPanelSizeWhenVisible = panelSizes.bottomPanel.height;
             }
             else {
-                this._goldenLayout.setPanelHeights(25, 50, 25);
+                if (bottomPanelSizeWhenVisible === undefined) {
+                    throw new Error('Expected bottom panel size to be recorded');
+                }
+                let topPanelNewHeight = panelSizes.topPanel.height;
+                let mainPanelNewHeight = panelSizes.mainPanel.height - bottomPanelSizeWhenVisible;
+                if (mainPanelNewHeight < 0) {
+                    topPanelNewHeight = topPanelNewHeight + mainPanelNewHeight - 0.1;
+                    mainPanelNewHeight = 0.1;
+                }
+                this._goldenLayout.setPanelHeights(topPanelNewHeight, mainPanelNewHeight, bottomPanelSizeWhenVisible);
                 bottomPanelVisible = true;
             }
         }

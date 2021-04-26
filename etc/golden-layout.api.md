@@ -969,6 +969,29 @@ export abstract class LayoutManager extends EventEmitter {
     getComponentEvent: LayoutManager.GetComponentEventHandler | undefined;
     getComponentInstantiator(config: ResolvedComponentItemConfig): LayoutManager.ComponentInstantiator | undefined;
     // (undocumented)
+    getPanelGridRowColumnSizes(): {
+        mainPanel: {
+            width: number;
+            height: number;
+        };
+        leftPanel: {
+            width: number;
+            height: undefined;
+        };
+        topPanel: {
+            width: undefined;
+            height: number;
+        };
+        rightPanel: {
+            width: number;
+            height: undefined;
+        };
+        bottomPanel: {
+            width: undefined;
+            height: number;
+        };
+    };
+    // (undocumented)
     getRegisteredComponentTypeNames(): string[];
     // (undocumented)
     get height(): number | null;

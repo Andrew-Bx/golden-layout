@@ -15,6 +15,8 @@ export class PanelSplitter {
 
     get element(): HTMLDivElement { return this._element; }
 
+    get isVertical(): boolean { return this._isVertical; }
+
     constructor(private _isVertical: boolean, private _size: number, grabSize: number) {
         this._grabSize = grabSize < this._size ? this._size : grabSize;
 
@@ -28,25 +30,33 @@ export class PanelSplitter {
 
         if (this._isVertical) {
             this._element.classList.add(DomConstants.ClassName.Vertical);
-            this.element.style.width = "100%";
+            this.element.style.width = "100%"; // TODO ASB: move to CSS?
             this.element.style.height = numberToPixels(this._size);
-            this.element.style.top = numberToPixels(-this._size);
 
             dragHandleElement.style.top = numberToPixels(-handleExcessPos);
             dragHandleElement.style.height = numberToPixels(this._size + handleExcessSize);
         } else {
             this._element.classList.add(DomConstants.ClassName.Horizontal);
-            this.element.style.height = "100%";
+            this.element.style.height = "100%"; // TODO ASB: move to CSS?
             this.element.style.width = numberToPixels(this._size);
-            this.element.style.left = numberToPixels(-this._size);
 
             dragHandleElement.style.left = numberToPixels(-handleExcessPos);
             dragHandleElement.style.width = numberToPixels(this._size + handleExcessSize);
         }
+        this.resetPosition();
 
         this._element.appendChild(dragHandleElement);
 
         this._dragListener = new DragListener(this._element, [dragHandleElement]);
+    }
+
+    /** @internal */
+    resetPosition(): void {
+        if (this._isVertical) {
+            this.element.style.top = numberToPixels(-this._size);
+        } else {
+            this.element.style.left = numberToPixels(-this._size);
+        }
     }
 
     destroy(): void {
