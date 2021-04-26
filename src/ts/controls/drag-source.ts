@@ -93,6 +93,9 @@ export class DragSource {
         // All ContentItems (except for GroundItem) need a parent.  When dragging, the parent is not used.
         // Instead of allowing null parents (as Javascript version did), use a temporary dummy GroundItem parent and add ContentItem to that
         // If this does not work, need to create alternative GroundItem class
+        
+        // TODO ASB: dummy ground item causes some breakage... use drag source, don't hover over GL, and drop.
+        // DragProxy.onDrop checks to see if proxy item has 'original parent'
 
         const itemConfig: ComponentItemConfig = {
             type: 'component',
