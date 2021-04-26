@@ -189,6 +189,75 @@ export class App {
             }
         }
 
+        const slideToggleBottomPanelButton = document.querySelector('#slideToggleBottomPanelButton') as HTMLButtonElement;
+        slideToggleBottomPanelButton.onclick = () => {
+            const panelSizes = this._goldenLayout.getPanelGridRowColumnSizes();
+            // set a constant speed of 100%/second
+            const speed = 100/1000; // %/ms
+
+            if (bottomPanelVisible) {
+                // slide it closed
+                bottomPanelSizeWhenVisible = panelSizes.bottomPanel.height;
+                const initialMainPanelHeight = panelSizes.mainPanel.height;
+                const initialBottomPanelHeight = panelSizes.bottomPanel.height;
+                const totalDurationMs = initialBottomPanelHeight/speed;
+                let startTimeMs: number;
+                const slideCloseStep = (animationTimestampMs: number) => {
+                    if (startTimeMs === undefined) {
+                        startTimeMs = animationTimestampMs;
+                    }
+                    const elapsedMs = animationTimestampMs - startTimeMs;
+                    let bottomPanelNewHeight = ((totalDurationMs - elapsedMs)/totalDurationMs) * initialBottomPanelHeight;
+                    if (bottomPanelNewHeight < 0) {
+                        bottomPanelNewHeight = 0;
+                    }
+                    const mainPanelNewHeight = initialMainPanelHeight + (initialBottomPanelHeight - bottomPanelNewHeight);
+
+                    this._goldenLayout.setPanelHeights(panelSizes.topPanel.height, mainPanelNewHeight, bottomPanelNewHeight);                   
+
+                    if (elapsedMs < totalDurationMs) {
+                        window.requestAnimationFrame(slideCloseStep);
+                    } else {
+                        bottomPanelVisible = false;
+                    }
+                };
+                window.requestAnimationFrame(slideCloseStep);
+            }
+            else {
+                if (bottomPanelSizeWhenVisible === undefined) {
+                    throw new Error('Expected bottom panel size to be recorded');
+                }
+                // slide it open
+                const totalDurationMs = bottomPanelSizeWhenVisible/speed;
+                const initialMainPanelHeight = panelSizes.mainPanel.height;
+                let startTimeMs: number;
+                const slideOpenStep = (animationTimestampMs: number) => {
+                    if (startTimeMs === undefined) {
+                        startTimeMs = animationTimestampMs;
+                    }
+                    const elapsedMs = animationTimestampMs - startTimeMs;
+
+                    let topPanelNewHeight = panelSizes.topPanel.height;
+                    let bottomPanelNewHeight = (elapsedMs/totalDurationMs) * bottomPanelSizeWhenVisible!;
+                    let mainPanelNewHeight = initialMainPanelHeight - bottomPanelNewHeight;
+                    if (mainPanelNewHeight < 0) {
+                        topPanelNewHeight = topPanelNewHeight + mainPanelNewHeight - 0.1;
+                        mainPanelNewHeight = 0.1;
+                    }
+                    this._goldenLayout.setPanelHeights(topPanelNewHeight, mainPanelNewHeight, bottomPanelNewHeight!);
+
+                    if (elapsedMs < totalDurationMs) {
+                        window.requestAnimationFrame(slideOpenStep);
+                    } else {
+                        bottomPanelVisible = true;
+                    }
+                };
+                window.requestAnimationFrame(slideOpenStep);
+            }
+
+            // TODO ASB: disable button while sliding?  Probably gonna throw this away...
+        };
+
         const bubbleClickCountSpan = document.querySelector('#bubbleClickCountSpan') as HTMLSpanElement;
         if (bubbleClickCountSpan === null) {
             throw Error('Could not find bubbleClickCountSpan');
