@@ -1496,14 +1496,11 @@ export abstract class LayoutManager extends EventEmitter {
     }
 
     /** @internal */
-    calculateItemAreas(): void {
-        this._itemAreas = [
-            ...this._groundPanelItems.mainPanel.getDropZoneAreas(),
-            ...this._groundPanelItems.leftPanel.getDropZoneAreas(),
-            ...this._groundPanelItems.topPanel.getDropZoneAreas(),
-            ...this._groundPanelItems.rightPanel.getDropZoneAreas(),
-            ...this._groundPanelItems.bottomPanel.getDropZoneAreas()
-        ];
+    calculateItemAreas(allowedPanels: ('mainPanel'|'leftPanel'|'topPanel'|'rightPanel'|'bottomPanel')[]): void {
+        this._itemAreas = [];
+        for (const allowedPanel of allowedPanels) {
+            this._itemAreas.push(...this._groundPanelItems[allowedPanel].getDropZoneAreas());
+        }     
     }
 
     /**

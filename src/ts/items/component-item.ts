@@ -41,6 +41,12 @@ export class ComponentItem extends ContentItem {
     get tab(): Tab { return this._tab; }
     get focused(): boolean { return this._focused; }
 
+    // TODO ASB: get allowed panels from config
+    /** @internal */
+    get allowedPanels(): ('mainPanel'|'leftPanel'|'topPanel'|'rightPanel'|'bottomPanel')[] {
+        return ['mainPanel', 'bottomPanel'];
+    }
+
     /** @internal */
     constructor(
         layoutManager: LayoutManager,

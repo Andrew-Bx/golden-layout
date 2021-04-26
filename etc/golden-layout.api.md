@@ -132,6 +132,8 @@ export class ComponentItem extends ContentItem {
     // @internal
     constructor(layoutManager: LayoutManager, config: ResolvedComponentItemConfig,
     _parentItem: ComponentParentableItem);
+    // @internal (undocumented)
+    get allowedPanels(): ('mainPanel' | 'leftPanel' | 'topPanel' | 'rightPanel' | 'bottomPanel')[];
     // (undocumented)
     applyUpdatableConfig(config: ResolvedComponentItemConfig): void;
     blur(suppressEvent?: boolean): void;
@@ -934,7 +936,7 @@ export abstract class LayoutManager extends EventEmitter {
     addItem(itemConfig: RowOrColumnItemConfig | StackItemConfig | ComponentItemConfig): LayoutManager.Location;
     addItemAtLocation(itemConfig: RowOrColumnItemConfig | StackItemConfig | ComponentItemConfig, locationSelectors?: readonly LayoutManager.LocationSelector[]): LayoutManager.Location | undefined;
     // @internal (undocumented)
-    calculateItemAreas(): void;
+    calculateItemAreas(allowedPanels: ('mainPanel' | 'leftPanel' | 'topPanel' | 'rightPanel' | 'bottomPanel')[]): void;
     // (undocumented)
     checkMinimiseMaximisedStack(): void;
     clearComponentFocus(suppressEvent?: boolean): void;

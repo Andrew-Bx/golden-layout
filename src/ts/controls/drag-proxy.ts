@@ -73,7 +73,7 @@ export class DragProxy extends EventEmitter {
             y = constrainedPosition.y;
         }
 
-        this._layoutManager.calculateItemAreas();
+        this._layoutManager.calculateItemAreas(this._componentItem.allowedPanels);
         this.setDropPosition(x, y);
     }
 
