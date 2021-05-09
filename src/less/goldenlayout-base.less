@@ -36,6 +36,10 @@
     "bottomPanel bottomPanel bottomPanel";
 }
 
+.lm_goldenlayout.lm_hasMaximisedItem {
+  display: block;
+}
+
 .lm_mainPanel {
   grid-area: mainPanel;
   background-color: hsl(0deg 0% 10%); /* TODO ASB debugging only! */
@@ -55,6 +59,16 @@
 .lm_bottomPanel {
   grid-area: bottomPanel;
   background-color: hsl(0deg 0% 30%); /* TODO ASB debugging only! */
+}
+
+.lm_goldenlayout.lm_hasMaximisedItem {
+  & .lm_mainPanel,
+  & .lm_leftPanel,
+  & .lm_topPanel,
+  & .lm_rightPanel,
+  & .lm_bottomPanel {
+    display: none;
+  }
 }
 
 .lm_root {
@@ -80,10 +94,9 @@
 
 // If a specific Pane is maximized
 .lm_maximised {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 40;
+  position: relative;
+  height: 100%;
+  width: 100%;
 }
 
 .lm_maximise_placeholder {
@@ -106,6 +119,10 @@
       cursor: ew-resize;
     }
   }
+}
+
+.lm_goldenlayout.lm_hasMaximisedItem .lm_panelSplitter {
+  display: none;
 }
 
 // Separator line (handle to change pane size)

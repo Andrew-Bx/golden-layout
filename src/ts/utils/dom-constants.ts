@@ -30,6 +30,7 @@ export namespace DomConstants {
         Dock = 'lm_dock',
         Popout = 'lm_popout',
         Popin = 'lm_popin',
+        HasMaximisedItem = 'lm_hasMaximisedItem',
         Maximise = 'lm_maximise',
         Close = 'lm_close',
         Active = 'lm_active',

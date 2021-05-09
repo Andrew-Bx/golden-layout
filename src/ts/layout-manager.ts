@@ -1541,19 +1541,15 @@ export abstract class LayoutManager extends EventEmitter {
         stack.element.classList.add(DomConstants.ClassName.Maximised);
         stack.element.insertAdjacentElement('afterend', this._maximisePlaceholder);
 
-        // TODO ASB: maximiseStack: check where this called from - should it be in context of a GroundItem?
-        if (this._groundPanelItems.mainPanel === undefined) {
-            throw new UnexpectedUndefinedError('LMMXI19993');
-        } else {
-            this._groundPanelItems.mainPanel.element.prepend(stack.element);
-            const { width, height } = getElementWidthAndHeight(this._containerElement);
-            setElementWidth(stack.element, width);
-            setElementHeight(stack.element, height);
-            stack.updateSize();
-            stack.focusActiveContentItem();
-            this._maximisedStack.emit('maximised');
-            this.emit('stateChanged');
-        }
+        this._containerElement.classList.add(DomConstants.ClassName.HasMaximisedItem);
+        this._containerElement.prepend(stack.element);
+        const { width, height } = getElementWidthAndHeight(this._containerElement);
+        setElementWidth(stack.element, width);
+        setElementHeight(stack.element, height);
+        stack.updateSize();
+        stack.focusActiveContentItem();
+        this._maximisedStack.emit('maximised');
+        this.emit('stateChanged');
     }
 
     /** @internal */
@@ -1565,6 +1561,7 @@ export abstract class LayoutManager extends EventEmitter {
             if (stack.parent === null) {
                 throw new UnexpectedNullError('LMMI13668');
             } else {
+                this._containerElement.classList.remove(DomConstants.ClassName.HasMaximisedItem);
                 stack.element.classList.remove(DomConstants.ClassName.Maximised);
                 this._maximisePlaceholder.insertAdjacentElement('afterend', stack.element);
                 this._maximisePlaceholder.remove();
