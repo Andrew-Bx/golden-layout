@@ -166,7 +166,7 @@ export class App {
             //     this._goldenLayout.setPanelHeights(topPanelNewHeight, mainPanelNewHeight, bottomPanelSizeWhenVisible);
             //     bottomPanelVisible = true;
             // }
-            
+
             // when bottom panel hidden, only add/remove size to the main panel (rather than keeping top and main in same proportion)
             if (bottomPanelVisible) {
                 const mainPanelNewHeight = panelSizes.mainPanel.height + panelSizes.bottomPanel.height
@@ -192,8 +192,9 @@ export class App {
         const slideToggleBottomPanelButton = document.querySelector('#slideToggleBottomPanelButton') as HTMLButtonElement;
         slideToggleBottomPanelButton.onclick = () => {
             const panelSizes = this._goldenLayout.getPanelGridRowColumnSizes();
-            // set a constant speed of 100%/second
-            const speed = 100/1000; // %/ms
+            // set a constant speed of sliding the full height in 1 second
+            const fullHeight = panelSizes.topPanel.height + panelSizes.mainPanel.height + panelSizes.bottomPanel.height;
+            const speed = fullHeight/1000; // height/ms
 
             if (bottomPanelVisible) {
                 // slide it closed
@@ -213,7 +214,7 @@ export class App {
                     }
                     const mainPanelNewHeight = initialMainPanelHeight + (initialBottomPanelHeight - bottomPanelNewHeight);
 
-                    this._goldenLayout.setPanelHeights(panelSizes.topPanel.height, mainPanelNewHeight, bottomPanelNewHeight);                   
+                    this._goldenLayout.setPanelHeights(panelSizes.topPanel.height, mainPanelNewHeight, bottomPanelNewHeight);
 
                     if (elapsedMs < totalDurationMs) {
                         window.requestAnimationFrame(slideCloseStep);

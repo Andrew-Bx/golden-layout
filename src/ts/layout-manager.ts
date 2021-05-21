@@ -139,10 +139,10 @@ export abstract class LayoutManager extends EventEmitter {
     get transitionIndicator(): TransitionIndicator | null { return this._transitionIndicator; }
     get width(): number | null { return this._width; }
     get height(): number | null { return this._height; }
-    /** 
+    /**
      * Retrieves the {@link (EventHub:class)} instance associated with this layout manager.
      * This can be used to propagate events between the windows
-     * @public 
+     * @public
      */
     get eventHub(): EventHub { return this._eventHub; }
 
@@ -478,10 +478,10 @@ export abstract class LayoutManager extends EventEmitter {
         const panelSplitterGrabSize = 10;
 
         this._containerElement.style.gap = numberToPixels(panelSplittterSize);
-        
+
         // TODO ASB: grid row/column sizes should come from initial config
-        this._containerElement.style.gridTemplateRows = '25% 50% 25%';
-        this._containerElement.style.gridTemplateColumns = '25% 50% 25%';
+        this._containerElement.style.gridTemplateRows = '1fr 2fr 1fr';
+        this._containerElement.style.gridTemplateColumns = '1fr 2fr 1fr';
 
         this._groundPanelItems.mainPanel.element.classList.add(DomConstants.ClassName.MainPanel);
         this._groundPanelItems.leftPanel.element.classList.add(DomConstants.ClassName.LeftPanel);
@@ -540,11 +540,10 @@ export abstract class LayoutManager extends EventEmitter {
         this.emit('initialised');
     }
 
+    // TODO ASB: this method added for api-test, but what do we really want to expose in the API?
     setPanelHeights(top: number, main: number, bottom: number): void {
-        // expect top+main+bottom = 100  -- check/enforce this?
-
-        this._containerElement.style.gridTemplateRows = `${top}% ${main}% ${bottom}%`; //`
-        // eg to hide bottom panel: 33.33%/66.66%/0  (maybe provide convenience methods for show/hide of top/bottom?)
+        this._containerElement.style.gridTemplateRows = `${top}fr ${main}fr ${bottom}fr`;
+        // eg to hide bottom panel: '33.33fr 66.66fr 0fr'  (maybe provide convenience methods for show/hide of top/bottom?)
 
         this._groundPanelItems.mainPanel.updateSize();
         this._groundPanelItems.leftPanel.updateSize();
@@ -561,7 +560,7 @@ export abstract class LayoutManager extends EventEmitter {
 
     // TODO ASB: move precedingPanel and succeedingPanel to be properties of the PanelSplitter?
     private onPanelSplitterDragStart(splitter: PanelSplitter, precedingPanel: GroundItem, succeedingPanel: GroundItem) {
-        
+
         if (splitter.isVertical) {
             this._panelSplitterDragMinOffset = - precedingPanel.element.clientHeight; // TODO: ASB: util method for this?
             this._panelSplitterDragMaxOffset = succeedingPanel.element.clientHeight;
@@ -593,8 +592,9 @@ export abstract class LayoutManager extends EventEmitter {
 
     // TODO ASB: rename+refactor (particularly if leaving as part of public API)
     getPanelGridRowColumnSizes() {
-        const rowSizes = this._containerElement.style.gridTemplateRows.replace('%','').split(' ').map((x) => parseFloat(x));
-        const columnSizes = this._containerElement.style.gridTemplateColumns.replace('%','').split(' ').map((x) => parseFloat(x));
+        // TODO ASB: maybe use string template literals to 'type' the expected format of these strings?
+        const rowSizes = this._containerElement.style.gridTemplateRows.replace(/fr/g,'').split(' ').map((x) => parseFloat(x));
+        const columnSizes = this._containerElement.style.gridTemplateColumns.replace(/fr/g,'').split(' ').map((x) => parseFloat(x));
         return {
             // TODO ASB: avoid need for undefineds...
             mainPanel: { width: columnSizes[1], height: rowSizes[1]},
@@ -605,13 +605,13 @@ export abstract class LayoutManager extends EventEmitter {
         };
     }
 
-    private setPanelGridRowSizes(topPanelPercent?: number, mainPanelPercent?: number, bottomPanelPercent?: number): void {
+    private setPanelGridRowSizes(topPanelFraction?: number, mainPaneFraction?: number, bottomPanelFraction?: number): void {
         const originalPanelRelativeSizes = this.getPanelGridRowColumnSizes();
-        topPanelPercent = topPanelPercent ?? originalPanelRelativeSizes.topPanel.height;
-        mainPanelPercent = mainPanelPercent ?? originalPanelRelativeSizes.mainPanel.height;
-        bottomPanelPercent = bottomPanelPercent ?? originalPanelRelativeSizes.bottomPanel.height;
+        topPanelFraction = topPanelFraction ?? originalPanelRelativeSizes.topPanel.height;
+        mainPaneFraction = mainPaneFraction ?? originalPanelRelativeSizes.mainPanel.height;
+        bottomPanelFraction = bottomPanelFraction ?? originalPanelRelativeSizes.bottomPanel.height;
 
-        this._containerElement.style.gridTemplateRows = `${topPanelPercent}% ${mainPanelPercent}% ${bottomPanelPercent}%`;
+        this._containerElement.style.gridTemplateRows = `${topPanelFraction}fr ${mainPaneFraction}fr ${bottomPanelFraction}fr`;
     }
     private setPanelGridColumSizes(leftPanelPercent?: number, mainPanelPercent?: number, rightPanelPercent?: number): void {
         const originalPanelRelativeSizes = this.getPanelGridRowColumnSizes();
@@ -619,7 +619,7 @@ export abstract class LayoutManager extends EventEmitter {
         mainPanelPercent = mainPanelPercent ?? originalPanelRelativeSizes.mainPanel.width;
         rightPanelPercent = rightPanelPercent ?? originalPanelRelativeSizes.rightPanel.width;
 
-        this._containerElement.style.gridTemplateColumns = `${leftPanelPercent}% ${mainPanelPercent}% ${rightPanelPercent}%`;
+        this._containerElement.style.gridTemplateColumns = `${leftPanelPercent}fr ${mainPanelPercent}fr ${rightPanelPercent}fr`;
     }
 
     private onPanelSplitterDragStop(
@@ -628,13 +628,13 @@ export abstract class LayoutManager extends EventEmitter {
         succeedingPanel: GroundItem,
         precedingPanelName: 'mainPanel'|'leftPanel'|'topPanel'|'rightPanel'|'bottomPanel',
         succeedingPanelName: 'mainPanel'|'leftPanel'|'topPanel'|'rightPanel'|'bottomPanel') {
-        
+
         if (this._panelSpltterDragCurrentOffset === undefined) {
             throw new Error('expected _panelSpltterDragCurrentOffset to have value when drag stopped');
         }
 
         const panelRelativeSizes = this.getPanelGridRowColumnSizes();
-        
+
         // need to parse and update gridTemplateRows/Columns
         // get left and right widths
         // use offset to determine new widths
@@ -643,7 +643,7 @@ export abstract class LayoutManager extends EventEmitter {
         if (splitter.isVertical) {
             const precedingPanelInitialPixelHeight = precedingPanel.element.clientHeight;
             const succeedingPanelInitialPixelHeight = succeedingPanel.element.clientHeight;
-            
+
             const precedingPanelNewPixelHeight = precedingPanelInitialPixelHeight + this._panelSpltterDragCurrentOffset;
             const succeedingPanelNewPixelHeight = succeedingPanelInitialPixelHeight - this._panelSpltterDragCurrentOffset;
             const totalPixelHeight = precedingPanelNewPixelHeight + succeedingPanelNewPixelHeight;
@@ -668,7 +668,7 @@ export abstract class LayoutManager extends EventEmitter {
         } else {
             const precedingPanelInitialPixelWidth = precedingPanel.element.clientWidth;
             const succeedingPanelInitialPixelWidth = succeedingPanel.element.clientWidth;
-            
+
             const precedingPanelNewPixelWidth = precedingPanelInitialPixelWidth + this._panelSpltterDragCurrentOffset;
             const succeedingPanelNewPixelWidth = succeedingPanelInitialPixelWidth - this._panelSpltterDragCurrentOffset;
             const totalPixelWidth = precedingPanelNewPixelWidth + succeedingPanelNewPixelWidth;
@@ -1500,7 +1500,7 @@ export abstract class LayoutManager extends EventEmitter {
         this._itemAreas = [];
         for (const allowedPanel of allowedPanels) {
             this._itemAreas.push(...this._groundPanelItems[allowedPanel].getDropZoneAreas());
-        }     
+        }
     }
 
     /**

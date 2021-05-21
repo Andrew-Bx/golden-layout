@@ -1038,6 +1038,8 @@ export abstract class LayoutManager extends EventEmitter {
     removeDragSource(dragSource: DragSource): void;
     // @internal @deprecated (undocumented)
     get root(): GroundItem | undefined;
+    // (undocumented)
+    get rootItem(): ContentItem | undefined;
     saveLayout(): ResolvedLayoutConfig;
     // @internal
     setFocusedComponentItem(item: ComponentItem | undefined, suppressEvents?: boolean): void;

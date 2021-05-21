@@ -30,31 +30,50 @@ $height6: 15px; // Appears 1 time
   position: relative;
 //   grid-template-columns: [first] 40px [line2] 50px [line3] auto [col4-start] 50px [five] 40px [end];
 //   grid-template-rows: [row1-start] 25% [row1-end] 100px [third-line] auto [last-line];
-  grid-template-areas: 
+  grid-template-areas:
     "leftPanel topPanel  rightPanel"
     "leftPanel mainPanel rightPanel"
     "bottomPanel bottomPanel bottomPanel";
 }
 
+.lm_goldenlayout.lm_hasMaximisedItem {
+  display: block;
+}
+
 .lm_mainPanel {
   grid-area: mainPanel;
+  overflow: hidden;
   background-color: hsl(0deg 0% 10%); /* TODO ASB debugging only! */
 }
 .lm_leftPanel {
   grid-area: leftPanel;
+  overflow: hidden;
   background-color: hsl(0deg 0% 15%); /* TODO ASB debugging only! */
 }
 .lm_topPanel {
   grid-area: topPanel;
+  overflow: hidden;
   background-color: hsl(0deg 0% 20%); /* TODO ASB debugging only! */
 }
 .lm_rightPanel {
   grid-area: rightPanel;
+  overflow: hidden;
   background-color: hsl(0deg 0% 25%); /* TODO ASB debugging only! */
 }
 .lm_bottomPanel {
   grid-area: bottomPanel;
+  overflow: hidden;
   background-color: hsl(0deg 0% 30%); /* TODO ASB debugging only! */
+}
+
+.lm_goldenlayout.lm_hasMaximisedItem {
+  & .lm_mainPanel,
+  & .lm_leftPanel,
+  & .lm_topPanel,
+  & .lm_rightPanel,
+  & .lm_bottomPanel {
+    display: none;
+  }
 }
 
 .lm_root {
@@ -80,10 +99,9 @@ $height6: 15px; // Appears 1 time
 
 // If a specific Pane is maximized
 .lm_maximised {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 40;
+  position: relative;
+  height: 100%;
+  width: 100%;
 }
 
 .lm_maximise_placeholder {
@@ -93,6 +111,23 @@ $height6: 15px; // Appears 1 time
 // Separator between panels
 .lm_panelSplitter {
   position: absolute;
+
+  &.lm_vertical {
+    .lm_drag_handle {
+      cursor: ns-resize;
+    }
+  }
+
+  &.lm_horizontal {
+    .lm_drag_handle {
+      height: 100%;
+      cursor: ew-resize;
+    }
+  }
+}
+
+.lm_goldenlayout.lm_hasMaximisedItem .lm_panelSplitter {
+  display: none;
 }
 
 // Separator line (handle to change pane size)
