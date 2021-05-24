@@ -6,9 +6,9 @@ import { LayoutManager } from '../layout-manager'
 import { DomConstants } from '../utils/dom-constants'
 import { ItemType, JsonValue, Side, WidthOrHeightPropertyName } from '../utils/types'
 import {
+    getElementFractionWidthAndHeight,
     getElementHeight,
     getElementWidth,
-    getElementWidthAndHeight,
     numberToPixels,
     pixelsToNumber,
     setElementDisplayVisibility,
@@ -420,9 +420,6 @@ export class RowOrColumn extends ContentItem {
         const sizeData = this.calculateAbsoluteSizes();
 
         for (let i = 0; i < this.contentItems.length; i++) {
-            if (sizeData.additionalPixel - i > 0) {
-                sizeData.itemSizes[i]++;
-            }
 
             if (this._isColumn) {
                 setElementWidth(this.contentItems[i].element, sizeData.totalWidth);
@@ -442,7 +439,7 @@ export class RowOrColumn extends ContentItem {
     private calculateAbsoluteSizes() {
         const totalSplitterSize = (this.contentItems.length - 1) * this._splitterSize;
         const headerSize = this.layoutManager.layoutConfig.dimensions.headerHeight;
-        let { width: totalWidth, height: totalHeight } = getElementWidthAndHeight(this.element);
+        let { width: totalWidth, height: totalHeight } = getElementFractionWidthAndHeight(this.element);
 
         if (this._isColumn) {
             totalHeight -= totalSplitterSize;
@@ -465,9 +462,9 @@ export class RowOrColumn extends ContentItem {
         for (let i = 0; i < this.contentItems.length; i++) {
             let itemSize: number;
             if (this._isColumn) {
-                itemSize = Math.floor(totalHeight * (this.contentItems[i].height / 100));
+                itemSize = totalHeight * (this.contentItems[i].height / 100);
             } else {
-                itemSize = Math.floor(totalWidth * (this.contentItems[i].width / 100));
+                itemSize = totalWidth * (this.contentItems[i].width / 100);
             }
             if (this.isDocked(i))
                 itemSize = headerSize;
@@ -476,11 +473,8 @@ export class RowOrColumn extends ContentItem {
             itemSizes.push(itemSize);
         }
 
-        const additionalPixel = Math.floor((this._isColumn ? totalHeight : totalWidth) - totalAssigned);
-
         return {
             itemSizes: itemSizes,
-            additionalPixel: additionalPixel,
             totalWidth: totalWidth,
             totalHeight: totalHeight
         };

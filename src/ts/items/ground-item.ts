@@ -4,7 +4,7 @@ import { AssertError, UnexpectedNullError } from '../errors/internal-error';
 import { LayoutManager } from '../layout-manager';
 import { DomConstants } from '../utils/dom-constants';
 import { AreaLinkedRect, ItemType } from '../utils/types';
-import { getElementWidthAndHeight, setElementHeight, setElementWidth } from '../utils/utils';
+import { setElementHeightPercent, setElementWidthPercent } from '../utils/utils';
 import { ComponentItem } from './component-item';
 import { ComponentParentableItem } from './component-parentable-item';
 import { ContentItem } from './content-item';
@@ -135,27 +135,8 @@ export class GroundItem extends ComponentParentableItem {
         return result;
     }
 
-    /** @internal */
-    setSize(width?: number, height?: number): void {
-        if (width === undefined || height === undefined) {
-            this.updateSize(); // For backwards compatibility with v1.x API
-        } else {
-            // TODO ASB: should we ever be getting here? (ie setting explicit size on ground-item; now going to rely on grid percentage sizing?)
-            setElementWidth(this.element, width);
-            setElementHeight(this.element, height);
-
-            // GroundItem can be empty
-            if (this.contentItems.length > 0) {
-                setElementWidth(this.contentItems[0].element, width);
-                setElementHeight(this.contentItems[0].element, height);
-            }
-
-            this.updateContentItemsSize();
-        }
-    }
-
     /**
-     * @internal  To update size with API, use {@link (LayoutManager:class).updateRootSize}
+     * @internal  To update size with API, use {@link (LayoutManager:class).updateSizeFromContainer}
      */
     updateSize(): void {
         this.updateNodeSize();
@@ -348,20 +329,10 @@ export class GroundItem extends ComponentParentableItem {
     }
 
     private updateNodeSize(): void {
-        // TODO ASB: no longer setting size of ground item (it's controlled by grid)
-        // const { width, height } = getElementWidthAndHeight(this._containerElement);
-        const { width, height } = getElementWidthAndHeight(this.element);
-
-        // setElementWidth(this.element, width);
-        // setElementHeight(this.element, height);
-
-        /*
-         * GroundItem can be empty
-         */
+        // N.B. GroundItem can be empty
         if (this.contentItems.length > 0) {
-            // TODO ASB: hopefully ultimately don't need to do this; root item can just have width and height 100% (of ground item)?
-            setElementWidth(this.contentItems[0].element, width);
-            setElementHeight(this.contentItems[0].element, height);
+            setElementWidthPercent(this.contentItems[0].element, 100);
+            setElementHeightPercent(this.contentItems[0].element, 100);
         }
     }
 

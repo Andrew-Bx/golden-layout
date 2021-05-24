@@ -1047,6 +1047,7 @@ export abstract class LayoutManager extends EventEmitter {
     setMaximisedStack(stack: Stack | undefined): void;
     // (undocumented)
     setPanelHeights(top: number, main: number, bottom: number): void;
+    // @deprecated (undocumented)
     setSize(width: number, height: number): void;
     // @internal (undocumented)
     startComponentDrag(x: number, y: number, dragListener: DragListener, componentItem: ComponentItem, stack: Stack): void;
@@ -1060,10 +1061,10 @@ export abstract class LayoutManager extends EventEmitter {
     get transitionIndicator(): TransitionIndicator | null;
     // @deprecated
     unminifyConfig(config: ResolvedLayoutConfig): ResolvedLayoutConfig;
+    // @deprecated (undocumented)
     updateRootSize(): void;
     // @deprecated (undocumented)
     updateSize(width: number, height: number): void;
-    // @internal (undocumented)
     updateSizeFromContainer(): void;
     // (undocumented)
     get width(): number | null;

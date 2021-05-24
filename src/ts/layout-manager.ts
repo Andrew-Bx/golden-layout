@@ -1003,7 +1003,7 @@ export abstract class LayoutManager extends EventEmitter {
     /** Loads the specified component ResolvedItemConfig as root.
      * This can be used to display a Component all by itself.  The layout cannot be changed other than having another new layout loaded.
      * Note that, if this layout is saved and reloaded, it will reload with the Component as a child of a Stack.
-    */
+     */
     loadComponentAsRoot(itemConfig: ComponentItemConfig): void {
         if (this._groundPanelItems.mainPanel === undefined) {
             throw new Error('Cannot add item before init');
@@ -1019,52 +1019,67 @@ export abstract class LayoutManager extends EventEmitter {
     }
 
     /**
-     * Updates the layout managers size
-     *
+     * @public
+     * Informs the Layout Manager that its container size has changed and to refresh appropriately
+     */
+    updateSizeFromContainer(): void {
+        const { width, height } = getElementWidthAndHeight(this._containerElement);
+        this.setSizeInternal(width, height);
+    }
+
+    /**
+     * @deprecated Use {@link (LayoutManager:class).updateSizeFromContainer}
+     */
+    setSize(width: number, height: number): void {
+        this.setSizeInternal(width, height);
+    }
+
+    /**
      * @param width - Width in pixels
      * @param height - Height in pixels
      */
-    setSize(width: number, height: number): void {
+    private setSizeInternal(width: number, height: number): void {
         this._width = width;
         this._height = height;
 
         if (this._isInitialised === true) {
-            if (this._groundPanelItems.mainPanel === undefined) {
-                throw new UnexpectedUndefinedError('LMUS18881');
-            } else {
-                // TODO ASB: setSize: first need to resize panel grid, then call setSize on each (visible?) panel
-                //           Actually, relying on grid percent sizes for now. (re-visit when supporting re-sizing of panels - hopefully stick with percent sizes?)
-                // this._groundPanelItems.main.setSize(this._width, this._height);
-                this._groundPanelItems.mainPanel.setSize(undefined, undefined); // TODO ASB: should be something like 'update/refresh size'?
-
-                if (this._maximisedStack) {
-                    const { width, height } = getElementWidthAndHeight(this._containerElement);
-                    setElementWidth(this._maximisedStack.element, width);
-                    setElementHeight(this._maximisedStack.element, height);
-                    this._maximisedStack.updateSize();
-                }
-
-                this.adjustColumnsResponsive();
+            if (this._groundPanelItems?.mainPanel === undefined) {
+                throw new Error('Initialised LayoutManager expected to have ground panel items');;
             }
-        }
-    }
 
-    /** @internal */
-    updateSizeFromContainer(): void {
-        const { width, height } = getElementWidthAndHeight(this._containerElement);
-        this.setSize(width, height);
+            this.updateGroundPanelSizes();
+
+            if (this._maximisedStack) {
+                const { width, height } = getElementWidthAndHeight(this._containerElement);
+                setElementWidth(this._maximisedStack.element, width);
+                setElementHeight(this._maximisedStack.element, height);
+                this._maximisedStack.updateSize();
+            }
+
+            this.adjustColumnsResponsive();
+        }
     }
 
     /**
-     * Update the size of the root ContentItem.  This will update the size of all contentItems in the tree
+     * @deprecated Use {@link (LayoutManager:class).updateSizeFromContainer}
      */
     updateRootSize(): void {
-        // TODO ASB: should update the size of side panels too?
         if (this._groundPanelItems.mainPanel === undefined) {
             throw new UnexpectedUndefinedError('LMURS28881');
         } else {
-            this._groundPanelItems.mainPanel.updateSize();
+            this.updateGroundPanelSizes();
         }
+    }
+
+    /**
+     * Update the size of each root ContentItem.  This will update the size of all contentItems in their trees
+     */
+    private updateGroundPanelSizes(): void {
+        this._groundPanelItems.mainPanel.updateSize();
+        this._groundPanelItems.leftPanel.updateSize();
+        this._groundPanelItems.topPanel.updateSize();
+        this._groundPanelItems.rightPanel.updateSize();
+        this._groundPanelItems.bottomPanel.updateSize();
     }
 
     /** @public */

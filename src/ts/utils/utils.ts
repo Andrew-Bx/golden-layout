@@ -18,14 +18,25 @@ export function pixelsToNumber(value: string): number {
 }
 
 /** @internal */
+export function numberToPercent(value: number): string {
+    return value.toString(10) + '%';
+}
+
+/** @internal */
 export function getElementWidth(element: HTMLElement): number {
     return element.offsetWidth;
 }
 
-/** @internal */
+/** @internal Sets width in pixels  */
 export function setElementWidth(element: HTMLElement, width: number): void {
     const widthAsPixels = numberToPixels(width);
     element.style.width = widthAsPixels;
+}
+
+/** @internal */
+export function setElementWidthPercent(element: HTMLElement, width: number): void {
+    const widthAsPercent = numberToPercent(width);
+    element.style.width = widthAsPercent;
 }
 
 /** @internal */
@@ -33,17 +44,31 @@ export function getElementHeight(element: HTMLElement): number {
     return element.offsetHeight;
 }
 
-/** @internal */
+/** @internal Sets height in pixels */
 export function setElementHeight(element: HTMLElement, height: number): void {
     const heightAsPixels = numberToPixels(height);
     element.style.height = heightAsPixels;
 }
 
 /** @internal */
+export function setElementHeightPercent(element: HTMLElement, height: number): void {
+    const heightAsPercent = numberToPercent(height);
+    element.style.height = heightAsPercent;
+}
+
+/** @internal Get width and height as integers */
 export function getElementWidthAndHeight(element: HTMLElement): WidthAndHeight {
     return {
         width: element.offsetWidth,
         height: element.offsetHeight,
+    };
+}
+
+export function getElementFractionWidthAndHeight(element: HTMLElement): WidthAndHeight {
+    const rect = element.getBoundingClientRect();
+    return {
+        width: rect.width,
+        height: rect.height
     };
 }
 
