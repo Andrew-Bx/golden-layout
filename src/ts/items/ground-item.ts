@@ -431,8 +431,6 @@ export namespace GroundItem {
 
     export function createElement(document: Document): HTMLDivElement {
         const element = document.createElement('div');
-        // TODO ASB: breaking backwards compatibility? (are any of the css classes considered part of public API?)
-        // element.classList.add(DomConstants.ClassName.GoldenLayout);
         element.classList.add(DomConstants.ClassName.Item);
         element.classList.add(DomConstants.ClassName.Root);
         return element;

@@ -474,10 +474,10 @@ export abstract class LayoutManager extends EventEmitter {
         this._containerElement.classList.add(DomConstants.ClassName.GoldenLayout);
 
         // TODO ASB: get panel splitter sizes from config?
-        const panelSplittterSize = 5;
+        const panelSplitterSize = 5;
         const panelSplitterGrabSize = 10;
 
-        this._containerElement.style.gap = numberToPixels(panelSplittterSize);
+        this._containerElement.style.gap = numberToPixels(panelSplitterSize);
 
         // TODO ASB: grid row/column sizes should come from initial config
         this._containerElement.style.gridTemplateRows = '1fr 2fr 1fr';
@@ -489,10 +489,10 @@ export abstract class LayoutManager extends EventEmitter {
         this._groundPanelItems.rightPanel.element.classList.add(DomConstants.ClassName.RightPanel);
         this._groundPanelItems.bottomPanel.element.classList.add(DomConstants.ClassName.BottomPanel);
 
-        const leftSplitter = new PanelSplitter(false, panelSplittterSize, panelSplitterGrabSize);
-        const topSplitter = new PanelSplitter(true, panelSplittterSize, panelSplitterGrabSize);
-        const rightSplitter = new PanelSplitter(false, panelSplittterSize, panelSplitterGrabSize);
-        const bottomSplitter = new PanelSplitter(true, panelSplittterSize, panelSplitterGrabSize);
+        const leftSplitter = new PanelSplitter(false, panelSplitterSize, panelSplitterGrabSize);
+        const topSplitter = new PanelSplitter(true, panelSplitterSize, panelSplitterGrabSize);
+        const rightSplitter = new PanelSplitter(false, panelSplitterSize, panelSplitterGrabSize);
+        const bottomSplitter = new PanelSplitter(true, panelSplitterSize, panelSplitterGrabSize);
 
         // based on currently hard-coded grid-template-areas:
         //   "leftPanel topPanel  rightPanel"
@@ -714,6 +714,7 @@ export abstract class LayoutManager extends EventEmitter {
             // In case application not correctly using legacy constructor
             throw new Error('GoldenLayout: Need to call init() if LayoutConfig with defined root passed to constructor')
         } else {
+            // TODO ASB: should be checking more general condition that 'ground panels are initialised'
             if (this._groundPanelItems.mainPanel === undefined) {
                 throw new UnexpectedUndefinedError('LMLL11119');
             } else {
@@ -1597,20 +1598,6 @@ export abstract class LayoutManager extends EventEmitter {
         }
 
     }
-
-    // /**
-    //  * Returns a flattened array of all content items,
-    //  * regardles of level or type
-    //  * @internal
-    //  */
-    // private getAllContentItems() {
-    //     if (this._groundPanelItems.main === undefined) {
-    //         throw new UnexpectedUndefinedError('LMGACI13130');
-    //     } else {
-    //         // TODO ASB: get content from side panels too? (where is this used? - calculatItemAreas)
-    //         return this._groundPanelItems.main.getAllContentItems();
-    //     }
-    // }
 
     /**
      * Binds to DOM/BOM events on init

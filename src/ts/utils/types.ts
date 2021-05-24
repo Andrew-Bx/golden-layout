@@ -10,13 +10,13 @@ export namespace WidthOrHeightPropertyName {
 /** @internal */
 export interface WidthAndHeight {
     width: number;
-    height: number;    
+    height: number;
 }
 
 /** @internal */
-export interface LeftAndTop {
+export interface LeftAndTop { // TODO ASB: check where/how used, and rename or give comment, eg style of element, in pixels
     left: number;
-    top: number;    
+    top: number;
 }
 
 /** @public */

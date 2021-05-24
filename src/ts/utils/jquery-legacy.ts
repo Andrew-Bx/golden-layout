@@ -1,10 +1,10 @@
-import { LeftAndTop } from './types';
+import { LeftAndTop } from './types'; // TODO ASB: maybe move this type here, if not also used in other contexts?
 import { pixelsToNumber } from './utils';
 
 /** @internal */
-export interface JQueryOffset {
+export interface JQueryOffset { // TODO ASB: rename, eg BodyOffset (and ultimately rename this file?)
     top: number;
-    left: number;    
+    left: number;
 }
 
 /** @internal */
@@ -18,7 +18,7 @@ export function getJQueryOffset(element: HTMLElement): JQueryOffset { // TODO AS
 }
 
 /** @internal */
-export function getJQueryLeftAndTop(element: HTMLElement): LeftAndTop {
+export function getJQueryLeftAndTop(element: HTMLElement): LeftAndTop { // TODO ASB: rename, eg getComputedLeftAndTop ?
     const style = getComputedStyle(element, null);
     const leftAndTop: LeftAndTop = {
         left: pixelsToNumber(style.left),

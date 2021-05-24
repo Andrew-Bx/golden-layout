@@ -879,7 +879,7 @@ export class Stack extends ComponentParentableItem {
     /** @internal */
     private setupHeaderPosition() {
         setElementDisplayVisibility(this._header.element, this._header.show);
-        // TODO ASB: only places these classes are used? (never added?)
+        // TODO ASB: only places these classes are used? (never added?) - no!  Added with dynamically-generated name on the next line!
         this.element.classList.remove(DomConstants.ClassName.Left, DomConstants.ClassName.Right, DomConstants.ClassName.Bottom);
         if (this._header.leftRightSided) {
             this.element.classList.add('lm_' + this._header.side);
