@@ -479,9 +479,11 @@ export abstract class LayoutManager extends EventEmitter {
 
         this._containerElement.style.gap = numberToPixels(panelSplitterSize);
 
-        // TODO ASB: grid row/column sizes should come from initial config
-        this._containerElement.style.gridTemplateRows = '1fr 2fr 1fr';
-        this._containerElement.style.gridTemplateColumns = '1fr 2fr 1fr';
+        const rows = this.layoutConfig.panels.sizes.rows;
+        const columns = this.layoutConfig.panels.sizes.columns;
+        // TODO ASB use methods to do this? (depends if they require other stuff to be init'ed?)
+        this._containerElement.style.gridTemplateRows = `${rows.top}fr ${rows.center}fr ${rows.bottom}fr`;
+        this._containerElement.style.gridTemplateColumns = `${columns.left}fr ${columns.center}fr ${columns.right}fr`;
 
         this._groundPanelItems.mainPanel.element.classList.add(DomConstants.ClassName.MainPanel);
         this._groundPanelItems.leftPanel.element.classList.add(DomConstants.ClassName.LeftPanel);
@@ -498,6 +500,7 @@ export abstract class LayoutManager extends EventEmitter {
         //   "leftPanel topPanel  rightPanel"
         //   "leftPanel mainPanel rightPanel"
         //   "bottomPanel bottomPanel bottomPanel"
+        // TODO ASB: need to set these dynamically depending on which side each corner is being used for
         leftSplitter.element.style.gridColumn = "2/2";
         leftSplitter.element.style.gridRow = "1/3";
         leftSplitter.element.style.backgroundColor = 'red'; // TODO ASB: testing only!
@@ -513,19 +516,19 @@ export abstract class LayoutManager extends EventEmitter {
 
         leftSplitter.on('dragStart', () => this.onPanelSplitterDragStart(leftSplitter, this._groundPanelItems.leftPanel, this._groundPanelItems.mainPanel));
         leftSplitter.on('drag', (offsetX: number, offsetY: number) => this.onPanelSplitterDrag(leftSplitter, offsetX, offsetY));
-        leftSplitter.on('dragStop', () => this.onPanelSplitterDragStop(leftSplitter, leftPanel, mainPanel, 'leftPanel', 'mainPanel'));
+        leftSplitter.on('dragStop', () => this.onPanelSplitterDragStop(leftSplitter, leftPanel, mainPanel));
 
         topSplitter.on('dragStart', () => this.onPanelSplitterDragStart(topSplitter, this._groundPanelItems.topPanel, this._groundPanelItems.mainPanel));
         topSplitter.on('drag', (offsetX: number, offsetY: number) => this.onPanelSplitterDrag(topSplitter, offsetX, offsetY));
-        topSplitter.on('dragStop', () => this.onPanelSplitterDragStop(topSplitter, topPanel, mainPanel, 'topPanel', 'mainPanel'));
+        topSplitter.on('dragStop', () => this.onPanelSplitterDragStop(topSplitter, topPanel, mainPanel));
 
         rightSplitter.on('dragStart', () => this.onPanelSplitterDragStart(rightSplitter, mainPanel, rightPanel));
         rightSplitter.on('drag', (offsetX: number, offsetY: number) => this.onPanelSplitterDrag(rightSplitter, offsetX, offsetY));
-        rightSplitter.on('dragStop', () => this.onPanelSplitterDragStop(rightSplitter, mainPanel, rightPanel, 'mainPanel', 'rightPanel'));
+        rightSplitter.on('dragStop', () => this.onPanelSplitterDragStop(rightSplitter, mainPanel, rightPanel));
 
         bottomSplitter.on('dragStart', () => this.onPanelSplitterDragStart(bottomSplitter, mainPanel, bottomPanel));
         bottomSplitter.on('drag', (offsetX: number, offsetY: number) => this.onPanelSplitterDrag(bottomSplitter, offsetX, offsetY));
-        bottomSplitter.on('dragStop', () => this.onPanelSplitterDragStop(bottomSplitter, mainPanel, bottomPanel, 'mainPanel', 'bottomPanel'));
+        bottomSplitter.on('dragStop', () => this.onPanelSplitterDragStop(bottomSplitter, mainPanel, bottomPanel));
 
         this._containerElement.appendChild(leftSplitter.element);
         this._containerElement.appendChild(topSplitter.element);
@@ -540,19 +543,43 @@ export abstract class LayoutManager extends EventEmitter {
         this.emit('initialised');
     }
 
-    // TODO ASB: this method added for api-test, but what do we really want to expose in the API?
-    setPanelHeights(top: number, main: number, bottom: number): void {
-        this._containerElement.style.gridTemplateRows = `${top}fr ${main}fr ${bottom}fr`;
-        // eg to hide bottom panel: '33.33fr 66.66fr 0fr'  (maybe provide convenience methods for show/hide of top/bottom?)
+    /**
+     * Ensure all sizes are non-negative, at least one is positive, and normalise them so that the smalles non-zero value is 1
+     */
+    private normalizeRelativeSizes(rawSizes: readonly [number, number, number]): [number, number, number] {
+        let smallestNonZeroSize: number | null = null;
+        for (let size of rawSizes) {
+            if (size >= 0) {
+                if (size > 0 && size < (smallestNonZeroSize ?? Infinity)) {
+                    smallestNonZeroSize = size;
+                }
+            }
+            else {
+                throw new Error(`invalid panel size: ${size}`);
+            }
+        }
 
-        this._groundPanelItems.mainPanel.updateSize();
-        this._groundPanelItems.leftPanel.updateSize();
-        this._groundPanelItems.topPanel.updateSize();
-        this._groundPanelItems.rightPanel.updateSize();
-        this._groundPanelItems.bottomPanel.updateSize();
-        // TODO ASB: groundItem updateSize() should do nothing if panel not visible?
-        //  => also consider programmatically storing whether ground item is visible or not, and not returning drop zones for hidden ground item
+        if (smallestNonZeroSize === null) {
+            throw new Error (`invalid panel sizes (${rawSizes}), at least one must be non-zero`);
+        }
+        const scaleFactor = 1 / smallestNonZeroSize;
+        const normalisedSizes = rawSizes.map((rawSize) => rawSize * scaleFactor) as [number, number, number];
+        return normalisedSizes;
     }
+
+    setPanelSizes(sizes: Partial<ResolvedLayoutConfig.Panels.RelativeSizes>): void {
+        if (sizes.rows) {
+            this.setPanelGridRowSizes(sizes.rows);
+        }
+        if (sizes.columns) {
+            this.setPanelGridColumSizes(sizes.columns);
+        }
+
+        this.updateGroundPanelSizes();
+    }
+
+    // TODO ASB: add methods for show/hide side panels
+    // ... update the splitter visibility based on which panels are visible
 
     private _panelSplitterDragMinOffset: number;
     private _panelSplitterDragMaxOffset: number;
@@ -596,38 +623,76 @@ export abstract class LayoutManager extends EventEmitter {
         const rowSizes = this._containerElement.style.gridTemplateRows.replace(/fr/g,'').split(' ').map((x) => parseFloat(x));
         const columnSizes = this._containerElement.style.gridTemplateColumns.replace(/fr/g,'').split(' ').map((x) => parseFloat(x));
         return {
-            // TODO ASB: avoid need for undefineds...
-            mainPanel: { width: columnSizes[1], height: rowSizes[1]},
-            leftPanel: { width: columnSizes[0], height: undefined },
-            topPanel: { width: undefined, height: rowSizes[0] },
-            rightPanel: { width: columnSizes[2], height: undefined },
-            bottomPanel: { width: undefined, height: rowSizes[2] }
+            topPanelHeight: rowSizes[0],
+            mainPanelHeight: rowSizes[1],
+            bottomPanelHeight: rowSizes[2],
+
+            leftPanelWidth: columnSizes[0],
+            mainPanelWidth: columnSizes[1],
+            rightPanelWidth: columnSizes[2]
         };
     }
 
-    private setPanelGridRowSizes(topPanelFraction?: number, mainPaneFraction?: number, bottomPanelFraction?: number): void {
+    private setPanelGridRowSizes(sizes: Partial<ResolvedLayoutConfig.Panels.RowSizes>): void {
         const originalPanelRelativeSizes = this.getPanelGridRowColumnSizes();
-        topPanelFraction = topPanelFraction ?? originalPanelRelativeSizes.topPanel.height;
-        mainPaneFraction = mainPaneFraction ?? originalPanelRelativeSizes.mainPanel.height;
-        bottomPanelFraction = bottomPanelFraction ?? originalPanelRelativeSizes.bottomPanel.height;
+        const rawSizes = [
+            sizes.top ?? originalPanelRelativeSizes.topPanelHeight,
+            sizes.center ?? originalPanelRelativeSizes.mainPanelHeight,
+            sizes.bottom ?? originalPanelRelativeSizes.bottomPanelHeight
+        ] as const;
+        const [normalisedTop, normalisedCenter, normalisedBottom] = this.normalizeRelativeSizes(rawSizes);
+        this._containerElement.style.gridTemplateRows = `${normalisedTop}fr ${normalisedCenter}fr ${normalisedBottom}fr`;
 
-        this._containerElement.style.gridTemplateRows = `${topPanelFraction}fr ${mainPaneFraction}fr ${bottomPanelFraction}fr`;
+        this.layoutConfig.panels.sizes.rows = {
+            top: normalisedTop,
+            center: normalisedCenter,
+            bottom: normalisedBottom
+        };
     }
-    private setPanelGridColumSizes(leftPanelPercent?: number, mainPanelPercent?: number, rightPanelPercent?: number): void {
+    private setPanelGridColumSizes(sizes: Partial<ResolvedLayoutConfig.Panels.ColumnSizes>): void {
         const originalPanelRelativeSizes = this.getPanelGridRowColumnSizes();
-        leftPanelPercent = leftPanelPercent ?? originalPanelRelativeSizes.leftPanel.width;
-        mainPanelPercent = mainPanelPercent ?? originalPanelRelativeSizes.mainPanel.width;
-        rightPanelPercent = rightPanelPercent ?? originalPanelRelativeSizes.rightPanel.width;
+        const rawSizes = [
+            sizes.left ?? originalPanelRelativeSizes.leftPanelWidth,
+            sizes.center ?? originalPanelRelativeSizes.mainPanelWidth,
+            sizes.right ?? originalPanelRelativeSizes.rightPanelWidth
+        ] as const;
+        const [normalisedLeft, normalisedCenter, normalisedRight] = this.normalizeRelativeSizes(rawSizes);
+        this._containerElement.style.gridTemplateColumns = `${normalisedLeft}fr ${normalisedCenter}fr ${normalisedRight}fr`;
 
-        this._containerElement.style.gridTemplateColumns = `${leftPanelPercent}fr ${mainPanelPercent}fr ${rightPanelPercent}fr`;
+        this.layoutConfig.panels.sizes.columns = {
+            left: normalisedLeft,
+            center: normalisedCenter,
+            right: normalisedRight
+        };
+    }
+
+    // TODO ASB: static?  rename? 'convert pixel size and offset to relative size'
+    private getPanelRelativeSizesForSplitterOffset(
+        precedingPanelSize: number,
+        succeedingPanelSize: number,
+        splitterOffset: number): [number, number] {
+
+        const totalPixelSize = precedingPanelSize + succeedingPanelSize;
+
+        const precedingPanelNewPixelSize = precedingPanelSize + splitterOffset;
+        const succeedingPanelNewPixelSize = succeedingPanelSize - splitterOffset;
+        // it shouldn't be possible for these to be negative, because the drag handler
+        // makes sure that the offset doesn't exceed min/max values
+        // but we can check anyway:
+        if (precedingPanelNewPixelSize < 0 || succeedingPanelNewPixelSize < 0) {
+            throw new Error('drag caused panel size to become negative!');
+        }
+
+        const precedingPanelNewRelativeSize = precedingPanelNewPixelSize/totalPixelSize;
+        const succeedingPanelNewRelativeSize = succeedingPanelNewPixelSize/totalPixelSize;
+
+        return [precedingPanelNewRelativeSize, succeedingPanelNewRelativeSize];
     }
 
     private onPanelSplitterDragStop(
         splitter: PanelSplitter,
         precedingPanel: GroundItem,
-        succeedingPanel: GroundItem,
-        precedingPanelName: 'mainPanel'|'leftPanel'|'topPanel'|'rightPanel'|'bottomPanel',
-        succeedingPanelName: 'mainPanel'|'leftPanel'|'topPanel'|'rightPanel'|'bottomPanel') {
+        succeedingPanel: GroundItem) {
 
         if (this._panelSpltterDragCurrentOffset === undefined) {
             throw new Error('expected _panelSpltterDragCurrentOffset to have value when drag stopped');
@@ -641,51 +706,52 @@ export abstract class LayoutManager extends EventEmitter {
         // get left and right row/column widths => total width
         // from absolute widths, determine proportion of total relative width
         if (splitter.isVertical) {
-            const precedingPanelInitialPixelHeight = precedingPanel.element.clientHeight;
-            const succeedingPanelInitialPixelHeight = succeedingPanel.element.clientHeight;
-
-            const precedingPanelNewPixelHeight = precedingPanelInitialPixelHeight + this._panelSpltterDragCurrentOffset;
-            const succeedingPanelNewPixelHeight = succeedingPanelInitialPixelHeight - this._panelSpltterDragCurrentOffset;
-            const totalPixelHeight = precedingPanelNewPixelHeight + succeedingPanelNewPixelHeight;
-
-            // TODO ASB: type this better! (and avoid passing 'panel name' in to this method)
-            const precedingPanelInitialRelativeHeight = panelRelativeSizes[precedingPanelName].height as number;
-            const succeedingPanelInitialRelativeHeight = panelRelativeSizes[succeedingPanelName].height as number;
-            const totalRelativeHeight = precedingPanelInitialRelativeHeight + succeedingPanelInitialRelativeHeight;
-
-            const precedingPanelNewRelativeHeight = (precedingPanelNewPixelHeight/totalPixelHeight) * totalRelativeHeight;
-            const succeedingPanelNewRelativeHeight = (succeedingPanelNewPixelHeight/totalPixelHeight) * totalRelativeHeight;
+            const newPanelRelativeHeights =
+                this.getPanelRelativeSizesForSplitterOffset(
+                    precedingPanel.element.clientHeight,
+                    succeedingPanel.element.clientHeight,
+                    this._panelSpltterDragCurrentOffset);
 
             // TODO ASB: improve all this stuff to do with 'which panel' etc...
-            if (precedingPanelName === 'topPanel' && succeedingPanelName === 'mainPanel') {
-                this.setPanelGridRowSizes(precedingPanelNewRelativeHeight, succeedingPanelNewRelativeHeight, undefined);
-            } else if (precedingPanelName === 'mainPanel' && succeedingPanelName === 'bottomPanel') {
-                this.setPanelGridRowSizes(undefined, precedingPanelNewRelativeHeight, succeedingPanelNewRelativeHeight);
+            if (precedingPanel === this._groundPanelItems.topPanel && succeedingPanel === this._groundPanelItems.mainPanel) {
+                const relativeHeightOfResizedRows = panelRelativeSizes.topPanelHeight + panelRelativeSizes.mainPanelHeight;
+
+                this.setPanelGridRowSizes({
+                    top: newPanelRelativeHeights[0] * relativeHeightOfResizedRows,
+                    center: newPanelRelativeHeights[1] * relativeHeightOfResizedRows
+                });
+            } else if (precedingPanel === this._groundPanelItems.mainPanel && succeedingPanel === this._groundPanelItems.bottomPanel) {
+                const relativeHeightOfResizedRows = panelRelativeSizes.mainPanelHeight + panelRelativeSizes.bottomPanelHeight;
+
+                this.setPanelGridRowSizes({
+                    center:  newPanelRelativeHeights[0] * relativeHeightOfResizedRows,
+                    bottom: newPanelRelativeHeights[1] * relativeHeightOfResizedRows
+                });
             }
             else {
                 throw new Error ('unexpected panel combination');
             }
         } else {
-            const precedingPanelInitialPixelWidth = precedingPanel.element.clientWidth;
-            const succeedingPanelInitialPixelWidth = succeedingPanel.element.clientWidth;
-
-            const precedingPanelNewPixelWidth = precedingPanelInitialPixelWidth + this._panelSpltterDragCurrentOffset;
-            const succeedingPanelNewPixelWidth = succeedingPanelInitialPixelWidth - this._panelSpltterDragCurrentOffset;
-            const totalPixelWidth = precedingPanelNewPixelWidth + succeedingPanelNewPixelWidth;
-
-            // TODO ASB: type this better! (and avoid passing 'panel name' in to this method)
-            const precedingPanelInitialRelativeWidth = panelRelativeSizes[precedingPanelName].width as number;
-            const succeedingPanelInitialRelativeWidth = panelRelativeSizes[succeedingPanelName].width as number;
-            const totalRelativeWidth = precedingPanelInitialRelativeWidth + succeedingPanelInitialRelativeWidth;
-
-            const precedingPanelNewRelativeWidth = (precedingPanelNewPixelWidth/totalPixelWidth) * totalRelativeWidth;
-            const succeedingPanelNewRelativeWidth = (succeedingPanelNewPixelWidth/totalPixelWidth) * totalRelativeWidth;
+            const newPanelRelativeHeights = this.getPanelRelativeSizesForSplitterOffset(
+                precedingPanel.element.clientWidth,
+                succeedingPanel.element.clientWidth,
+                this._panelSpltterDragCurrentOffset);
 
             // TODO ASB: improve all this stuff to do with 'which panel' etc...
-            if (precedingPanelName === 'leftPanel' && succeedingPanelName === 'mainPanel') {
-                this.setPanelGridColumSizes(precedingPanelNewRelativeWidth, succeedingPanelNewRelativeWidth, undefined);
-            } else if (precedingPanelName === 'mainPanel' && succeedingPanelName === 'rightPanel') {
-                this.setPanelGridColumSizes(undefined, precedingPanelNewRelativeWidth, succeedingPanelNewRelativeWidth);
+            if (precedingPanel === this._groundPanelItems.leftPanel && succeedingPanel === this._groundPanelItems.mainPanel) {
+                const relativeWidthOfResizedColumns = panelRelativeSizes.leftPanelWidth + panelRelativeSizes.mainPanelWidth;
+
+                this.setPanelGridColumSizes({
+                    left: newPanelRelativeHeights[0] * relativeWidthOfResizedColumns,
+                    center: newPanelRelativeHeights[1] * relativeWidthOfResizedColumns
+                });
+            } else if (precedingPanel === this._groundPanelItems.mainPanel && succeedingPanel === this._groundPanelItems.rightPanel) {
+                const relativeWidthOfResizedColumns = panelRelativeSizes.mainPanelWidth + panelRelativeSizes.rightPanelWidth;
+
+                this.setPanelGridColumSizes({
+                    center: newPanelRelativeHeights[0] * relativeWidthOfResizedColumns,
+                    right: newPanelRelativeHeights[1] * relativeWidthOfResizedColumns
+                });
             }
             else {
                 throw new Error ('unexpected panel combination');
@@ -697,11 +763,7 @@ export abstract class LayoutManager extends EventEmitter {
         this._panelSpltterDragCurrentOffset = undefined;
 
         globalThis.requestAnimationFrame(() => {
-            this._groundPanelItems.mainPanel.updateSize();
-            this._groundPanelItems.leftPanel.updateSize();
-            this._groundPanelItems.topPanel.updateSize();
-            this._groundPanelItems.rightPanel.updateSize();
-            this._groundPanelItems.bottomPanel.updateSize();
+            this.updateGroundPanelSizes();
         });
     }
 
@@ -746,8 +808,7 @@ export abstract class LayoutManager extends EventEmitter {
             /*
             * Content
             */
-           // TODO ASB: save config of side panels too
-            if (this._groundPanelItems.mainPanel === undefined) {
+           if (this._groundPanelItems.mainPanel === undefined) {
                 throw new UnexpectedUndefinedError('LMTC18244');
             } else {
                 const groundContent = this._groundPanelItems.mainPanel.calculateConfigContent();
@@ -774,6 +835,8 @@ export abstract class LayoutManager extends EventEmitter {
                     settings:  ResolvedLayoutConfig.Settings.createCopy(this.layoutConfig.settings),
                     dimensions: ResolvedLayoutConfig.Dimensions.createCopy(this.layoutConfig.dimensions),
                     header: ResolvedLayoutConfig.Header.createCopy(this.layoutConfig.header),
+                    panels: ResolvedLayoutConfig.Panels.createCopy(this.layoutConfig.panels),
+                     // TODO ASB: save config of side panels too. So, need to be updating this.layoutConfig with all changes?
                     resolved: true,
                 }
 
@@ -1075,6 +1138,8 @@ export abstract class LayoutManager extends EventEmitter {
      * Update the size of each root ContentItem.  This will update the size of all contentItems in their trees
      */
     private updateGroundPanelSizes(): void {
+        // TODO ASB: groundItem updateSize() should do nothing if panel not visible?
+        //  => also consider programmatically storing whether ground item is visible or not, and not returning drop zones for hidden ground item
         this._groundPanelItems.mainPanel.updateSize();
         this._groundPanelItems.leftPanel.updateSize();
         this._groundPanelItems.topPanel.updateSize();
@@ -1243,6 +1308,7 @@ export abstract class LayoutManager extends EventEmitter {
             settings: layoutConfig.settings,
             dimensions: layoutConfig.dimensions,
             header: layoutConfig.header,
+            panels: layoutConfig.panels, // TODO ASB: pop-outs: same panel config as main layout-manager?
             window,
             parentId,
             indexInParent,

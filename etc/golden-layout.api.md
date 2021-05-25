@@ -837,6 +837,8 @@ export interface LayoutConfig {
     // (undocumented)
     openPopouts?: PopoutLayoutConfig[];
     // (undocumented)
+    panels?: LayoutConfig.Panels;
+    // (undocumented)
     root: RootItemConfig;
     // (undocumented)
     settings?: LayoutConfig.Settings;
@@ -894,6 +896,27 @@ export namespace LayoutConfig {
         popout?: string;
         // @deprecated (undocumented)
         tabDropdown?: string;
+    }
+    // (undocumented)
+    export interface Panels {
+        // (undocumented)
+        sizes: {
+            rows: {
+                top: number;
+                center: number;
+                bottom: number;
+            };
+            columns: {
+                left: number;
+                center: number;
+                right: number;
+            };
+        };
+    }
+    // (undocumented)
+    export namespace Panels {
+        // (undocumented)
+        export function resolve(panelConfig: Panels | undefined): ResolvedLayoutConfig.Panels;
     }
     // (undocumented)
     export function resolve(layoutConfig: LayoutConfig): ResolvedLayoutConfig;
@@ -972,26 +995,12 @@ export abstract class LayoutManager extends EventEmitter {
     getComponentInstantiator(config: ResolvedComponentItemConfig): LayoutManager.ComponentInstantiator | undefined;
     // (undocumented)
     getPanelGridRowColumnSizes(): {
-        mainPanel: {
-            width: number;
-            height: number;
-        };
-        leftPanel: {
-            width: number;
-            height: undefined;
-        };
-        topPanel: {
-            width: undefined;
-            height: number;
-        };
-        rightPanel: {
-            width: number;
-            height: undefined;
-        };
-        bottomPanel: {
-            width: undefined;
-            height: number;
-        };
+        topPanelHeight: number;
+        mainPanelHeight: number;
+        bottomPanelHeight: number;
+        leftPanelWidth: number;
+        mainPanelWidth: number;
+        rightPanelWidth: number;
     };
     // (undocumented)
     getRegisteredComponentTypeNames(): string[];
@@ -1046,7 +1055,7 @@ export abstract class LayoutManager extends EventEmitter {
     // @internal
     setMaximisedStack(stack: Stack | undefined): void;
     // (undocumented)
-    setPanelHeights(top: number, main: number, bottom: number): void;
+    setPanelSizes(sizes: Partial<ResolvedLayoutConfig.Panels.RelativeSizes>): void;
     // @deprecated (undocumented)
     setSize(width: number, height: number): void;
     // @internal (undocumented)
@@ -1342,6 +1351,8 @@ export interface ResolvedLayoutConfig {
     // (undocumented)
     readonly openPopouts: ResolvedPopoutLayoutConfig[];
     // (undocumented)
+    readonly panels: ResolvedLayoutConfig.Panels;
+    // (undocumented)
     readonly resolved: true;
     // (undocumented)
     readonly root: ResolvedRootItemConfig | undefined;
@@ -1408,6 +1419,43 @@ export namespace ResolvedLayoutConfig {
     // (undocumented)
     export function isPopout(config: ResolvedLayoutConfig): config is ResolvedPopoutLayoutConfig;
     export function minifyConfig(layoutConfig: ResolvedLayoutConfig): ResolvedLayoutConfig;
+    // (undocumented)
+    export interface Panels {
+        // (undocumented)
+        sizes: Panels.RelativeSizes;
+    }
+    // (undocumented)
+    export namespace Panels {
+        // (undocumented)
+        export interface ColumnSizes {
+            // (undocumented)
+            center: number;
+            // (undocumented)
+            left: number;
+            // (undocumented)
+            right: number;
+        }
+        // (undocumented)
+        export function createCopy(panelConfig: Panels): Panels;
+        // (undocumented)
+        export interface RelativeSizes {
+            // (undocumented)
+            columns: ColumnSizes;
+            // (undocumented)
+            rows: RowSizes;
+        }
+        const // (undocumented)
+        defaults: ResolvedLayoutConfig.Panels;
+        // (undocumented)
+        export interface RowSizes {
+            // (undocumented)
+            bottom: number;
+            // (undocumented)
+            center: number;
+            // (undocumented)
+            top: number;
+        }
+    }
     // (undocumented)
     export interface Settings {
         // (undocumented)

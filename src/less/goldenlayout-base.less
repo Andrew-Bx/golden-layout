@@ -25,11 +25,8 @@
 @height6: 15px; // Appears 1 time
 
 .lm_goldenlayout {
-  // TODO ASB: should we really be applying styles to root element (provided by consumer), or should we create our own 'root' element?
   display: grid;
   position: relative;
-//   grid-template-columns: [first] 40px [line2] 50px [line3] auto [col4-start] 50px [five] 40px [end];
-//   grid-template-rows: [row1-start] 25% [row1-end] 100px [third-line] auto [last-line];
   grid-template-areas:
     "leftPanel topPanel  rightPanel"
     "leftPanel mainPanel rightPanel"

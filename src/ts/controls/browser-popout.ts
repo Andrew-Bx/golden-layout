@@ -41,7 +41,7 @@ export class BrowserPopout extends EventEmitter {
         private _layoutManager: LayoutManager,
     ) {
         super();
-        
+
         this._isInitialised = false;
         this._popoutWindow = null;
         this.createWindow();
@@ -54,7 +54,7 @@ export class BrowserPopout extends EventEmitter {
 
         const glInstance = this.getGlInstance();
         const glInstanceConfig = glInstance.saveLayout();
-        
+
         let left: number | null;
         let top: number | null;
         if (this._popoutWindow === null) {
@@ -78,6 +78,7 @@ export class BrowserPopout extends EventEmitter {
             settings: glInstanceConfig.settings,
             dimensions: glInstanceConfig.dimensions,
             header: glInstanceConfig.header,
+            panels: glInstanceConfig.panels,
             window,
             parentId: this._config.parentId,
             indexInParent: this._config.indexInParent,

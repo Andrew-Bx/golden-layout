@@ -144,47 +144,31 @@ export class App {
         this._reloadSavedLayoutButton.addEventListener('click', this._reloadSavedLayoutButtonClickListener, { passive: true });
 
         let bottomPanelVisible = true;
-        let bottomPanelSizeWhenVisible: number|undefined;
+        let bottomPanelRelativeSizeWhenVisible: number|undefined;
         const toggleBottomPanelButton = document.querySelector('#toggleBottomPanelButton') as HTMLButtonElement;
         toggleBottomPanelButton.onclick = () => {
             const panelSizes = this._goldenLayout.getPanelGridRowColumnSizes();
-            // keeping top and main in same proportion:
-            // if (bottomPanelVisible) {
-            //     const topAndMainTotalHeight = panelSizes.topPanel.height + panelSizes.mainPanel.height;
-            //     const topPanelNewHeight = (panelSizes.topPanel.height/topAndMainTotalHeight) * 100;
-            //     const mainPanelNewHeight = (panelSizes.mainPanel.height/topAndMainTotalHeight) * 100;
-            //     this._goldenLayout.setPanelHeights(topPanelNewHeight, mainPanelNewHeight, 0);
-            //     bottomPanelVisible = false;
-            //     bottomPanelSizeWhenVisible = panelSizes.bottomPanel.height;
-            // }
-            // else {
-            //     if (bottomPanelSizeWhenVisible === undefined) {
-            //         throw new Error('Expected bottom panel size to be recorded');
-            //     }
-            //     const topPanelNewHeight = panelSizes.topPanel.height * (100 - bottomPanelSizeWhenVisible) / 100;
-            //     const mainPanelNewHeight = panelSizes.mainPanel.height * (100 - bottomPanelSizeWhenVisible) / 100;
-            //     this._goldenLayout.setPanelHeights(topPanelNewHeight, mainPanelNewHeight, bottomPanelSizeWhenVisible);
-            //     bottomPanelVisible = true;
-            // }
 
             // when bottom panel hidden, only add/remove size to the main panel (rather than keeping top and main in same proportion)
             if (bottomPanelVisible) {
-                const mainPanelNewHeight = panelSizes.mainPanel.height + panelSizes.bottomPanel.height
-                this._goldenLayout.setPanelHeights(panelSizes.topPanel.height, mainPanelNewHeight, 0);
+                const mainPanelNewHeight = panelSizes.mainPanelHeight + panelSizes.bottomPanelHeight
+                this._goldenLayout.setPanelSizes({rows: {top: panelSizes.topPanelHeight, center: mainPanelNewHeight, bottom: 0}});
                 bottomPanelVisible = false;
-                bottomPanelSizeWhenVisible = panelSizes.bottomPanel.height;
+                const totalHeight = panelSizes.topPanelHeight + panelSizes.mainPanelHeight + panelSizes.bottomPanelHeight;
+                bottomPanelRelativeSizeWhenVisible = panelSizes.bottomPanelHeight / totalHeight;
             }
             else {
-                if (bottomPanelSizeWhenVisible === undefined) {
+                if (bottomPanelRelativeSizeWhenVisible === undefined) {
                     throw new Error('Expected bottom panel size to be recorded');
                 }
-                let topPanelNewHeight = panelSizes.topPanel.height;
-                let mainPanelNewHeight = panelSizes.mainPanel.height - bottomPanelSizeWhenVisible;
+                const currentTotalHeight = panelSizes.topPanelHeight + panelSizes.mainPanelHeight;
+                let newBottomRelativeHeight = bottomPanelRelativeSizeWhenVisible * currentTotalHeight;
+                let mainPanelNewHeight = panelSizes.mainPanelHeight - newBottomRelativeHeight;
                 if (mainPanelNewHeight < 0) {
-                    topPanelNewHeight = topPanelNewHeight + mainPanelNewHeight - 0.1;
-                    mainPanelNewHeight = 0.1;
+                    newBottomRelativeHeight += mainPanelNewHeight;
+                    mainPanelNewHeight = 0;
                 }
-                this._goldenLayout.setPanelHeights(topPanelNewHeight, mainPanelNewHeight, bottomPanelSizeWhenVisible);
+                this._goldenLayout.setPanelSizes({rows: {top: panelSizes.topPanelHeight, center: mainPanelNewHeight, bottom: newBottomRelativeHeight}});
                 bottomPanelVisible = true;
             }
         }
@@ -193,14 +177,15 @@ export class App {
         slideToggleBottomPanelButton.onclick = () => {
             const panelSizes = this._goldenLayout.getPanelGridRowColumnSizes();
             // set a constant speed of sliding the full height in 1 second
-            const fullHeight = panelSizes.topPanel.height + panelSizes.mainPanel.height + panelSizes.bottomPanel.height;
+            const fullHeight = panelSizes.topPanelHeight + panelSizes.mainPanelHeight + panelSizes.bottomPanelHeight;
             const speed = fullHeight/1000; // height/ms
 
             if (bottomPanelVisible) {
                 // slide it closed
-                bottomPanelSizeWhenVisible = panelSizes.bottomPanel.height;
-                const initialMainPanelHeight = panelSizes.mainPanel.height;
-                const initialBottomPanelHeight = panelSizes.bottomPanel.height;
+                const totalHeight = panelSizes.topPanelHeight + panelSizes.mainPanelHeight + panelSizes.bottomPanelHeight;
+                bottomPanelRelativeSizeWhenVisible = panelSizes.bottomPanelHeight / totalHeight;
+                const initialMainPanelHeight = panelSizes.mainPanelHeight;
+                const initialBottomPanelHeight = panelSizes.bottomPanelHeight;
                 const totalDurationMs = initialBottomPanelHeight/speed;
                 let startTimeMs: number;
                 const slideCloseStep = (animationTimestampMs: number) => {
@@ -214,7 +199,7 @@ export class App {
                     }
                     const mainPanelNewHeight = initialMainPanelHeight + (initialBottomPanelHeight - bottomPanelNewHeight);
 
-                    this._goldenLayout.setPanelHeights(panelSizes.topPanel.height, mainPanelNewHeight, bottomPanelNewHeight);
+                    this._goldenLayout.setPanelSizes({rows: {top: panelSizes.topPanelHeight, center: mainPanelNewHeight, bottom: bottomPanelNewHeight}});
 
                     if (elapsedMs < totalDurationMs) {
                         window.requestAnimationFrame(slideCloseStep);
@@ -225,12 +210,17 @@ export class App {
                 window.requestAnimationFrame(slideCloseStep);
             }
             else {
-                if (bottomPanelSizeWhenVisible === undefined) {
+                if (bottomPanelRelativeSizeWhenVisible === undefined) {
                     throw new Error('Expected bottom panel size to be recorded');
                 }
                 // slide it open
-                const totalDurationMs = bottomPanelSizeWhenVisible/speed;
-                const initialMainPanelHeight = panelSizes.mainPanel.height;
+                const totalHeight = panelSizes.topPanelHeight + panelSizes.mainPanelHeight + panelSizes.bottomPanelHeight;
+                const totalDurationMs = bottomPanelRelativeSizeWhenVisible*totalHeight/speed;
+                const initialMainPanelHeight = panelSizes.mainPanelHeight;
+                let bottomPanelTargetHeight = bottomPanelRelativeSizeWhenVisible * totalHeight;
+                if (bottomPanelTargetHeight > initialMainPanelHeight) {
+                    bottomPanelTargetHeight = initialMainPanelHeight;
+                }
                 let startTimeMs: number;
                 const slideOpenStep = (animationTimestampMs: number) => {
                     if (startTimeMs === undefined) {
@@ -238,14 +228,12 @@ export class App {
                     }
                     const elapsedMs = animationTimestampMs - startTimeMs;
 
-                    let topPanelNewHeight = panelSizes.topPanel.height;
-                    let bottomPanelNewHeight = (elapsedMs/totalDurationMs) * bottomPanelSizeWhenVisible!;
-                    let mainPanelNewHeight = initialMainPanelHeight - bottomPanelNewHeight;
-                    if (mainPanelNewHeight < 0) {
-                        topPanelNewHeight = topPanelNewHeight + mainPanelNewHeight - 0.1;
-                        mainPanelNewHeight = 0.1;
+                    let bottomPanelNewHeight = (elapsedMs/totalDurationMs) * bottomPanelTargetHeight;
+                    if (bottomPanelNewHeight > bottomPanelTargetHeight) {
+                        bottomPanelNewHeight = bottomPanelTargetHeight;
                     }
-                    this._goldenLayout.setPanelHeights(topPanelNewHeight, mainPanelNewHeight, bottomPanelNewHeight!);
+                    let mainPanelNewHeight = initialMainPanelHeight - bottomPanelNewHeight;
+                    this._goldenLayout.setPanelSizes({rows: {top: panelSizes.topPanelHeight, center: mainPanelNewHeight, bottom: bottomPanelNewHeight}});
 
                     if (elapsedMs < totalDurationMs) {
                         window.requestAnimationFrame(slideOpenStep);

@@ -320,7 +320,7 @@ export namespace ResolvedRowOrColumnItemConfig {
     }
 }
 
-/** 
+/**
  * RootItemConfig is the topmost ResolvedItemConfig specified by the user.
  * Note that it does not have a corresponding contentItem.  It specifies the one and only child of the Ground ContentItem
  * Note that RootItemConfig can be an ComponentItem itemConfig.  However when the Ground ContentItem's child is created
@@ -389,6 +389,7 @@ export interface ResolvedLayoutConfig {
     readonly dimensions: ResolvedLayoutConfig.Dimensions;
     readonly settings: ResolvedLayoutConfig.Settings;
     readonly header: ResolvedLayoutConfig.Header;
+    readonly panels: ResolvedLayoutConfig.Panels;
     readonly resolved: true,
 }
 
@@ -507,6 +508,52 @@ export namespace ResolvedLayoutConfig {
         } as const;
     }
 
+    export interface Panels {
+        sizes: Panels.RelativeSizes
+    }
+
+    export namespace Panels {
+        export interface RowSizes {
+            top: number;
+            center: number;
+            bottom: number;
+        }
+        export interface ColumnSizes {
+            left: number;
+            center: number;
+            right: number;
+        }
+        export interface RelativeSizes {
+            rows: RowSizes;
+            columns: ColumnSizes;
+        }
+
+        export const defaults: ResolvedLayoutConfig.Panels = {
+            sizes: {
+                rows: {
+                    top: 0,
+                    center: 1,
+                    bottom: 0
+                },
+
+                columns: {
+                    left: 0,
+                    center: 1,
+                    right: 0
+                }
+            }
+        };
+
+        export function createCopy(panelConfig: Panels): Panels {
+            return {
+                sizes: {
+                    rows: {...panelConfig.sizes.rows},
+                    columns: {...panelConfig.sizes.columns}
+                }
+            };
+        }
+    }
+
     export function isPopout(config: ResolvedLayoutConfig): config is ResolvedPopoutLayoutConfig {
         return 'parentId' in config;
     }
@@ -518,6 +565,7 @@ export namespace ResolvedLayoutConfig {
             dimensions: ResolvedLayoutConfig.Dimensions.defaults,
             settings: ResolvedLayoutConfig.Settings.defaults,
             header: ResolvedLayoutConfig.Header.defaults,
+            panels: ResolvedLayoutConfig.Panels.defaults,
             resolved: true,
         }
         return result;
@@ -533,6 +581,7 @@ export namespace ResolvedLayoutConfig {
                 settings: ResolvedLayoutConfig.Settings.createCopy(config.settings),
                 dimensions: ResolvedLayoutConfig.Dimensions.createCopy(config.dimensions),
                 header: ResolvedLayoutConfig.Header.createCopy(config.header),
+                panels: ResolvedLayoutConfig.Panels.createCopy(config.panels),
                 resolved: config.resolved,
             }
             return result;
@@ -607,6 +656,7 @@ export namespace ResolvedPopoutLayoutConfig {
             settings: ResolvedLayoutConfig.Settings.createCopy(original.settings),
             dimensions: ResolvedLayoutConfig.Dimensions.createCopy(original.dimensions),
             header: ResolvedLayoutConfig.Header.createCopy(original.header),
+            panels: ResolvedLayoutConfig.Panels.createCopy(original.panels),
             parentId: original.parentId,
             indexInParent: original.indexInParent,
             window: ResolvedPopoutLayoutConfig.Window.createCopy(original.window),

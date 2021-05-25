@@ -445,6 +445,7 @@ export interface LayoutConfig {
     /** @deprecated use {@link (LayoutConfig:interface).header} instead */
     labels?: LayoutConfig.Labels;
     header?: LayoutConfig.Header;
+    panels?: LayoutConfig.Panels;
 }
 
 /** Use to specify LayoutConfig with defaults or deserialise a LayoutConfig.
@@ -526,7 +527,7 @@ export namespace LayoutConfig {
         tabOverlapAllowance?: number;
 
         /**
-         * 
+         *
          * Default: true
          */
         reorderOnTabMenuClick?: boolean;
@@ -686,7 +687,7 @@ export namespace LayoutConfig {
          */
         minimise?: string;
         /**
-         * 
+         *
          * Default: 'additional tabs'
          */
         tabDropdown?: string;
@@ -722,6 +723,30 @@ export namespace LayoutConfig {
         }
     }
 
+    export interface Panels {
+        sizes: {
+            rows: {
+                top: number;
+                center: number;
+                bottom: number;
+            };
+
+            columns: {
+                left: number;
+                center: number;
+                right: number;
+            };
+        }
+    }
+
+    export namespace Panels {
+        export function resolve(panelConfig: Panels | undefined
+        ): ResolvedLayoutConfig.Panels {
+            const resolvedConfig: ResolvedLayoutConfig.Panels = panelConfig ?? ResolvedLayoutConfig.Panels.defaults;
+            return resolvedConfig;
+        }
+    }
+
     export function isPopout(config: LayoutConfig): config is PopoutLayoutConfig {
         return 'parentId' in config || 'indexInParent' in config || 'window' in config;
     }
@@ -747,7 +772,8 @@ export namespace LayoutConfig {
                 dimensions: LayoutConfig.Dimensions.resolve(layoutConfig.dimensions),
                 settings: LayoutConfig.Settings.resolve(layoutConfig.settings),
                 header: LayoutConfig.Header.resolve(layoutConfig.header, layoutConfig.settings, layoutConfig.labels),
-            } 
+                panels: LayoutConfig.Panels.resolve(layoutConfig.panels)
+            }
             return config;
         }
     }
@@ -760,6 +786,7 @@ export namespace LayoutConfig {
             dimensions: copiedConfig.dimensions,
             settings: copiedConfig.settings,
             header: copiedConfig.header,
+            panels: copiedConfig.panels
         };
         return result;
     }
@@ -785,8 +812,8 @@ export namespace LayoutConfig {
 
 /** @public */
 export interface PopoutLayoutConfig extends LayoutConfig {
-    /** The id of the element the item will be appended to on popIn 
-    * If null, append to topmost layout element 
+    /** The id of the element the item will be appended to on popIn
+    * If null, append to topmost layout element
     */
     parentId: string | null | undefined;
     /** The position of this element within its parent
@@ -863,11 +890,12 @@ export namespace PopoutLayoutConfig {
             settings: LayoutConfig.Settings.resolve(popoutConfig.settings),
             dimensions: LayoutConfig.Dimensions.resolve(popoutConfig.dimensions),
             header: LayoutConfig.Header.resolve(popoutConfig.header, popoutConfig.settings, popoutConfig.labels),
+            panels: LayoutConfig.Panels.resolve(popoutConfig.panels), // TODO ASB: pop-outs: could force to always use default panels (i.e. central panel only)?
             parentId: popoutConfig.parentId ?? null,
             indexInParent: popoutConfig.indexInParent ?? null,
             window: PopoutLayoutConfig.Window.resolve(popoutConfig.window, popoutConfig.dimensions),
             resolved: true,
-        } 
+        }
         return config;
     }
 }
