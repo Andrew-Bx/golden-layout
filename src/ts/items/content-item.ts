@@ -330,13 +330,12 @@ export abstract class ContentItem extends EventEmitter {
      * Returns the area the component currently occupies
      * @internal
      */
-    getElementArea(element?: HTMLElement): ContentItem.Area | null {
+    getElementArea(element?: HTMLElement): ContentItem.Area {
         element = element ?? this._element;
 
         const offset = getBodyOffset(element);
         const width = element.offsetWidth;
         const height = element.offsetHeight;
-        // const widthAndHeight = getJQueryWidthAndHeight(element);
 
         return {
             x1: offset.left + 1,

@@ -1126,7 +1126,10 @@ export abstract class LayoutManager extends EventEmitter {
         globalThis.setTimeout(() => globalThis.close(), 1);
     }
 
-    /** @internal */
+    /** TODO ASB: give more descriptive name.  'get drop zone for pointer position'?
+     * TODO ASB: maybe move this method too? 
+     * @internal
+     */
     getArea(x: number, y: number): ContentItem.Area | null {
         let matchingArea = null;
         let smallestSurface = Infinity;
@@ -1149,7 +1152,8 @@ export abstract class LayoutManager extends EventEmitter {
         return matchingArea;
     }
 
-    /** @internal */
+    /** TODO ASB: rename - calculate/gather available drop zones?
+     *  @internal */
     calculateItemAreas(): void {
         const allContentItems = this.getAllContentItems();
         /**
@@ -1157,59 +1161,36 @@ export abstract class LayoutManager extends EventEmitter {
          * allow to re-drop it. this.ground.contentiItems.length === 0 at this point
          *
          * Don't include ground into the possible drop areas though otherwise since it
-         * will used for every gap in the layout, e.g. splitters
+         * will be used for every gap in the layout, e.g. splitters
          */
         const groundItem = this._groundItem;
         if (groundItem === undefined) {
             throw new UnexpectedUndefinedError('LMCIAR44365');
-        } else {
-            if (allContentItems.length === 1) {
-                // No root ContentItem (just Ground ContentItem)
-                const groundArea = groundItem.getElementArea();
-                if (groundArea === null) {
-                    throw new UnexpectedNullError('LMCIARA44365')
-                } else {
-                    this._itemAreas = [groundArea];
-                }
-                return;
+        }
+        if (allContentItems.length === 1) {
+            // No root ContentItem (just Ground ContentItem)
+            const groundArea = groundItem.getElementArea();
+            if (groundArea === null) {
+                throw new UnexpectedNullError('LMCIARA44365')
             } else {
-                if (groundItem.contentItems[0].isStack) {
-                    // if root is Stack, then split stack and sides of Layout are same, so skip sides
-                    this._itemAreas = [];
-                } else {
-                    // sides of layout
-                    this._itemAreas = groundItem.createSideAreas();
+                this._itemAreas = [groundArea];
+            }
+            return;
+        } else {
+            if (groundItem.contentItems[0].isStack) {
+                // if root is Stack, then split stack and sides of Layout are same, so skip sides
+                this._itemAreas = [];
+            } else {
+                // sides of layout
+                this._itemAreas = groundItem.createSideAreas();
+            }
+
+            for (let i = 0; i < allContentItems.length; i++) {
+                const stack = allContentItems[i];
+                if (ContentItem.isStack(stack)) {
+                    this._itemAreas.push(...stack.getDropAreas());
                 }
-
-                for (let i = 0; i < allContentItems.length; i++) {
-                    const stack = allContentItems[i];
-                    if (ContentItem.isStack(stack)) {
-                        const area = stack.getArea();
-
-                        if (area === null) {
-                            continue;
-                        } else {
-                            this._itemAreas.push(area);
-                            const stackContentAreaDimensions = stack.contentAreaDimensions;
-                            if (stackContentAreaDimensions === undefined) {
-                                throw new UnexpectedUndefinedError('LMCIASC45599');
-                            } else {
-                                const highlightArea = stackContentAreaDimensions.header.highlightArea
-                                const surface = (highlightArea.x2 - highlightArea.x1) * (highlightArea.y2 - highlightArea.y1);
-
-                                const header: ContentItem.Area = {
-                                    x1: highlightArea.x1,
-                                    x2: highlightArea.x2,
-                                    y1: highlightArea.y1,
-                                    y2: highlightArea.y2,
-                                    contentItem: stack,
-                                    surface,
-                                };
-                                this._itemAreas.push(header);
-                            }
-                        }
-                    }
-                }
+                // TODO ASB: for row/column, also need to get drop areas
             }
         }
     }

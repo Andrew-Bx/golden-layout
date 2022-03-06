@@ -456,10 +456,9 @@ export class Stack extends ComponentParentableItem {
             this.resetHeaderDropZone();
             if (this._dropIndex === undefined) {
                 throw new UnexpectedUndefinedError('SODDI68990');
-            } else {
-                this.addChild(contentItem, this._dropIndex);
-                return;
             }
+            this.addChild(contentItem, this._dropIndex);
+            return;
         }
 
         /*
@@ -543,31 +542,87 @@ export class Stack extends ComponentParentableItem {
      * @internal
      */
     override highlightDropZone(x: number, y: number): void {
+
+        const dropTargetIndicator = this.layoutManager.dropTargetIndicator;
+        if (dropTargetIndicator === null) {
+            throw new UnexpectedNullError('SHHDZDTI97110');
+        }
+
         for (const key in this._contentAreaDimensions) {
             const segment = key as Stack.Segment;
-            const area = this._contentAreaDimensions[segment].hoverArea;
-
+            const contentArea = this._contentAreaDimensions[segment];
+            
+            const area = contentArea.hoverArea;
             if (area.x1 < x && area.x2 > x && area.y1 < y && area.y2 > y) {
 
+                this._dropSegment = segment;
+                let highlightArea: AreaLinkedRect;
+                let dropIndex: number;
                 if (segment === Stack.Segment.Header) {
-                    this._dropSegment = Stack.Segment.Header;
-                    this.highlightHeaderDropZone(this._header.leftRightSided ? y : x);
+                    ({area: highlightArea, dropIndex} = this.getHeaderDropArea(this._header.leftRightSided ? y : x));
                 } else {
                     this.resetHeaderDropZone();
-                    this.highlightBodyDropZone(segment);
+                    this._dropIndex = undefined;
+                    highlightArea = contentArea.highlightArea;
                 }
 
+                dropTargetIndicator.highlightArea(highlightArea);
+                this._dropIndex = dropIndex;
                 return;
+
+                // TODO ASB YAH: made changes here.. and now when dragging over stack header, get
+                // some weird effects.. don't think had those before => need to commit, and checkout
+                // previous version to check...
+                // (could also rebase on new HEAD)
             }
         }
     }
 
     /** @internal */
-    getArea(): ContentItem.Area | null {
+    getDropAreas(): ContentItem.Area[] {
+        const dropAreas: ContentItem.Area[] = [];
         if (this.element.style.display === 'none') {
-            return null;
+            return dropAreas;
         }
 
+        // TODO ASB: why not only do this when area is asked to highlight drop zone?
+        //  - because only want to do it once per drag operation? (ie at the start)
+        //    - instead, could just clear the array here (or maybe at start of this method), and re-generate if/when needed?
+        // Actually, contentAreaDimensions used below!
+        this.populateContentAreaDimenstions();
+
+        const area = super.getElementArea(this.element);
+        dropAreas.push(area);
+
+        // TODO ASB: so looks like we return two areas, one that covers the entire area
+        // and one that is just for the header area.
+        // And then later, when asked to highlight drop zone... what happens?
+        // And what happens when actually drop?
+        // Basically, want to re-think whether we need to return two areas here...
+        // (I think there's complexity with the stack, where the tab header drop zone moves around?)
+        // Also consider what will be needed for row/column...
+        const stackContentAreaDimensions = this.contentAreaDimensions;
+        if (stackContentAreaDimensions === undefined) {
+            throw new UnexpectedUndefinedError('LMCIASC45599');
+        }
+
+        const highlightArea = stackContentAreaDimensions.header.highlightArea
+        const surface = (highlightArea.x2 - highlightArea.x1) * (highlightArea.y2 - highlightArea.y1);
+
+        const header: ContentItem.Area = {
+            x1: highlightArea.x1,
+            x2: highlightArea.x2,
+            y1: highlightArea.y1,
+            y2: highlightArea.y2,
+            contentItem: this,
+            surface,
+        };
+        dropAreas.push(header);
+
+        return dropAreas;
+    }
+
+    private populateContentAreaDimenstions(): void {
         const headerArea = super.getElementArea(this._header.element);
         const contentArea = super.getElementArea(this._childElementContainer);
         if (headerArea === null || contentArea === null) {
@@ -612,8 +667,6 @@ export class Stack extends ComponentParentableItem {
                     y2: contentArea.y2
                 }
             };
-
-            return super.getElementArea(this.element);
         } else {
             this._contentAreaDimensions.left = {
                 hoverArea: {
@@ -674,8 +727,6 @@ export class Stack extends ComponentParentableItem {
                     y2: contentArea.y2
                 }
             };
-
-            return super.getElementArea(this.element);
         }
     }
 
@@ -716,21 +767,19 @@ export class Stack extends ComponentParentableItem {
     }
 
     /** @internal */
-    private highlightHeaderDropZone(x: number): void {
+    private getHeaderDropArea(x: number): {area: AreaLinkedRect, dropIndex: number} {
         // Only walk over the visible tabs
         const tabsLength = this._header.lastVisibleTabIndex + 1;
 
-        const dropTargetIndicator = this.layoutManager.dropTargetIndicator;
-        if (dropTargetIndicator === null) {
-            throw new UnexpectedNullError('SHHDZDTI97110');
-        }
-
         let area: AreaLinkedRect;
+        let dropIndex: number;
 
         // Empty stack
         if (tabsLength === 0) {
             const headerOffset = getBodyOffset(this._header.element);
 
+            // TODO ASB: how to end up with an empty stack to test this?
+            // ... and where do these magic values come from?
             const elementHeight = getElementHeight(this._header.element);
             area = {
                 x1: headerOffset.left,
@@ -739,7 +788,7 @@ export class Stack extends ComponentParentableItem {
                 y2: headerOffset.top + elementHeight,
             };
 
-            this._dropIndex = 0;
+            dropIndex = 0;
         } else {
             let tabIndex = 0;
             // This indicates whether our cursor is exactly over a tab
@@ -775,11 +824,15 @@ export class Stack extends ComponentParentableItem {
 
             const halfX = tabLeft + tabWidth / 2;
 
+            // TODO ASB: seems like we could generate the different header drop zones in advance, only
+            // wrinkle is that need to update the position of the tabDropPlaceholder too.
+            // (and defining drop areas in advance would mean ignoring the existence of the tabDropPlaceholder
+            //  when determining drop zone -- but that might be an improvement?)
             if (x < halfX) {
-                this._dropIndex = tabIndex;
+                dropIndex = tabIndex;
                 tabElement.insertAdjacentElement('beforebegin', this.layoutManager.tabDropPlaceholder);
             } else {
-                this._dropIndex = Math.min(tabIndex + 1, tabsLength);
+                dropIndex = Math.min(tabIndex + 1, tabsLength);
                 tabElement.insertAdjacentElement('afterend', this.layoutManager.tabDropPlaceholder);
             }
 
@@ -805,8 +858,7 @@ export class Stack extends ComponentParentableItem {
             }
         }
 
-        dropTargetIndicator.highlightArea(area);
-        return;
+        return {area, dropIndex};
     }
 
     /** @internal */
@@ -827,22 +879,6 @@ export class Stack extends ComponentParentableItem {
         //    this.element.appendChild(this._header.element);
         //}
         this.updateSize(false);
-    }
-
-    /** @internal */
-    private highlightBodyDropZone(segment: Stack.Segment): void {
-        if (this._contentAreaDimensions === undefined) {
-            throw new UnexpectedUndefinedError('SHBDZC82265');
-        } else {
-            const highlightArea = this._contentAreaDimensions[segment].highlightArea;
-            const dropTargetIndicator = this.layoutManager.dropTargetIndicator;
-            if (dropTargetIndicator === null) {
-                throw new UnexpectedNullError('SHBDZD96110');
-            } else {
-                dropTargetIndicator.highlightArea(highlightArea);
-                this._dropSegment = segment;
-            }
-        }
     }
 
     /** @internal */

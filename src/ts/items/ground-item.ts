@@ -225,6 +225,9 @@ export class GroundItem extends ComponentParentableItem {
     }
 
     override highlightDropZone(x: number, y: number, area: AreaLinkedRect): void {
+        // TODO ASB: don't like that the ground-item needs to know anything about the tabDropPlaceholder
+        // which is really internal to Stacks...
+        // 
         this.layoutManager.tabDropPlaceholder.remove();
         super.highlightDropZone(x, y, area);
     }
@@ -346,6 +349,8 @@ export class GroundItem extends ComponentParentableItem {
         }
     }
 
+    // TODO ASB: maybe not needed any more?
+    //    maybe static, not really specific to ground-item ?
     private deepGetAllContentItems(content: readonly ContentItem[], result: ContentItem[]): void {
         for (let i = 0; i < content.length; i++) {
             const contentItem = content[i];

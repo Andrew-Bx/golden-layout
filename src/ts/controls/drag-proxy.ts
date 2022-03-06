@@ -6,7 +6,7 @@ import { LayoutManager } from '../layout-manager';
 import { DomConstants } from '../utils/dom-constants';
 import { DragListener } from '../utils/drag-listener';
 import { EventEmitter } from '../utils/event-emitter';
-import { getJQueryOffset } from '../utils/jquery-legacy';
+import { getBodyOffset } from '../utils/utils';
 import { Side } from '../utils/types';
 import {
     getElementWidthAndHeight,
@@ -20,8 +20,8 @@ import {
  * @internal
  */
 export class DragProxy extends EventEmitter {
+    /** currently selected drop zone */
     private _area: ContentItem.Area | null = null;
-    private _lastValidArea: ContentItem.Area | null = null;
     private _minX: number;
     private _minY: number;
     private _maxX: number;
@@ -114,7 +114,7 @@ export class DragProxy extends EventEmitter {
     }
 
     private determineMinMaxXY(): void {
-        const offset = getJQueryOffset(this._layoutManager.container);
+        const offset = getBodyOffset(this._layoutManager.container);
         this._minX = offset.left;
         this._minY = offset.top;
         const { width: containerWidth, height: containerHeight } = getElementWidthAndHeight(this._layoutManager.container);
@@ -174,14 +174,23 @@ export class DragProxy extends EventEmitter {
      * @internal
      */
     private setDropPosition(x: number, y: number): void {
+        // TODO ASB: technically, this isn't setting the target position, but moving the drag proxy..
         this._element.style.left = numberToPixels(x);
         this._element.style.top = numberToPixels(y);
-        this._area = this._layoutManager.getArea(x, y);
-
-        if (this._area !== null) {
-            this._lastValidArea = this._area;
+        
+        const newArea = this._layoutManager.getArea(x, y);
+        // if newArea is null (ie current position is not a valid drop zone)
+        // then keep the last valid drop zone
+        if (newArea !== null) {
+            this._area = newArea;
             this._area.contentItem.highlightDropZone(x, y, this._area);
         }
+        // TODO ASB: if area being set here were actually the specific drop zone (eg tab header)
+        // then we could keep track of whether the newly selected area is the same as the old one,
+        // and then when it changes, tell the old one to clear itself up (which might include removing
+        // the tabDropPlaceholder, so that other non-stack content items don't need to know anything about it)
+        // (could also clear up stack's contentItem array... or maybe should just tell all areas to clear-up
+        //  when the item is dropped, ie the drag ends?)
     }
 
     /**
@@ -200,21 +209,12 @@ export class DragProxy extends EventEmitter {
         this._componentItem.exitDragMode();
 
         /*
-         * Valid drop area found
+         * A valid drop area is currently highlighted
          */
         let droppedComponentItem: ComponentItem | undefined;
         if (this._area !== null) {
             droppedComponentItem = this._componentItem;
             this._area.contentItem.onDrop(droppedComponentItem, this._area);
-
-            /**
-             * No valid drop area available at present, but one has been found before.
-             * Use it
-             */
-        } else if (this._lastValidArea !== null) {
-            droppedComponentItem = this._componentItem;
-            const newParentContentItem = this._lastValidArea.contentItem;
-            newParentContentItem.onDrop(droppedComponentItem, this._lastValidArea);
 
             /**
              * No valid drop area found during the duration of the drag. Return
