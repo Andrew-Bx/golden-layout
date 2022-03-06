@@ -3,7 +3,7 @@ import { BrowserPopout } from '../controls/browser-popout'
 import { AssertError, UnexpectedNullError } from '../errors/internal-error'
 import { LayoutManager } from '../layout-manager'
 import { EventEmitter } from '../utils/event-emitter'
-import { getJQueryOffset } from '../utils/jquery-legacy'
+import { getBodyOffset } from '../utils/utils'
 import { AreaLinkedRect, ItemType } from '../utils/types'
 import { getUniqueId, setElementDisplayVisibility } from '../utils/utils'
 import { ComponentItem } from './component-item'
@@ -333,7 +333,7 @@ export abstract class ContentItem extends EventEmitter {
     getElementArea(element?: HTMLElement): ContentItem.Area | null {
         element = element ?? this._element;
 
-        const offset = getJQueryOffset(element);
+        const offset = getBodyOffset(element);
         const width = element.offsetWidth;
         const height = element.offsetHeight;
         // const widthAndHeight = getJQueryWidthAndHeight(element);

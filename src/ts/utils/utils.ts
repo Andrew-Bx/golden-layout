@@ -1,4 +1,4 @@
-import { WidthAndHeight } from './types';
+import { LeftAndTop, WidthAndHeight } from './types';
 
 /** @internal */
 export function numberToPixels(value: number): string {
@@ -55,6 +55,15 @@ export function ensureElementPositionAbsolute(element: HTMLElement): void {
     const absolutePosition = 'absolute';
     if (element.style.position !== absolutePosition) {
         element.style.position = absolutePosition;
+    }
+}
+
+/** @internal */
+export function getBodyOffset(element: HTMLElement): LeftAndTop {
+    const rect = element.getBoundingClientRect();
+    return {
+        top: rect.top + document.body.scrollTop,
+        left: rect.left + document.body.scrollLeft,
     }
 }
 

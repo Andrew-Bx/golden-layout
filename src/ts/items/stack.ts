@@ -6,7 +6,7 @@ import { LayoutManager } from '../layout-manager';
 import { DomConstants } from '../utils/dom-constants';
 import { DragListener } from '../utils/drag-listener';
 import { EventEmitter } from '../utils/event-emitter';
-import { getJQueryOffset } from '../utils/jquery-legacy';
+import { getBodyOffset } from '../utils/utils';
 import { AreaLinkedRect, ItemType, JsonValue, Side, WidthAndHeight, WidthOrHeightPropertyName } from '../utils/types';
 import {
     getElementHeight,
@@ -729,7 +729,7 @@ export class Stack extends ComponentParentableItem {
 
         // Empty stack
         if (tabsLength === 0) {
-            const headerOffset = getJQueryOffset(this._header.element);
+            const headerOffset = getBodyOffset(this._header.element);
 
             const elementHeight = getElementHeight(this._header.element);
             area = {
@@ -750,7 +750,7 @@ export class Stack extends ComponentParentableItem {
             let tabElement: HTMLElement;
             do {
                 tabElement = this._header.tabs[tabIndex].element;
-                const offset = getJQueryOffset(tabElement);
+                const offset = getBodyOffset(tabElement);
                 if (this._header.leftRightSided) {
                     tabLeft = offset.top;
                     tabTop = offset.left;
@@ -783,7 +783,7 @@ export class Stack extends ComponentParentableItem {
                 tabElement.insertAdjacentElement('afterend', this.layoutManager.tabDropPlaceholder);
             }
 
-            const tabDropPlaceholderOffset = getJQueryOffset(this.layoutManager.tabDropPlaceholder);
+            const tabDropPlaceholderOffset = getBodyOffset(this.layoutManager.tabDropPlaceholder);
             const tabDropPlaceholderWidth = getElementWidth(this.layoutManager.tabDropPlaceholder)
             if (this._header.leftRightSided) {
                 const placeHolderTop = tabDropPlaceholderOffset.top;
