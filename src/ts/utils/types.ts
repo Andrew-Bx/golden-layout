@@ -1,3 +1,5 @@
+import { ComponentItem } from '../items/component-item';
+import { ContentItem } from '../items/content-item';
 import { StyleConstants } from './style-constants';
 
 /** @internal */
@@ -57,10 +59,23 @@ export interface Rect {
 
 /** @internal */
 export interface AreaLinkedRect {
+    // TODO ASB: rename to xLeft, xRight, yTop, yBottom ?
     x1: number, // left
     x2: number, // nextLeft
     y1: number, // top
     y2: number, // nextTop
+}
+
+/** @internal */
+export interface DropZone {
+    /** only for debugging purposes */
+    description: string;
+    contentItem: ContentItem;
+    hoverArea: AreaLinkedRect;
+    highlightArea: AreaLinkedRect;
+
+    onHoverCallback?: () => void;
+    onDrop: (droppedItem: ComponentItem) => void;
 }
 
 /** @public */

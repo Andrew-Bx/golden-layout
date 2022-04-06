@@ -28,12 +28,14 @@ import { DragListener } from './utils/drag-listener';
 import { EventEmitter } from './utils/event-emitter';
 import { EventHub } from './utils/event-hub';
 import { I18nStringId, I18nStrings, i18nStrings } from './utils/i18n-strings';
-import { ItemType, JsonValue, Rect, ResponsiveMode } from './utils/types';
+import { DropZone, ItemType, JsonValue, Rect, ResponsiveMode } from './utils/types';
 import {
     getElementWidthAndHeight,
     removeFromArray,
     setElementHeight,
-    setElementWidth
+    setElementWidth,
+    areaContainsPoint,
+    getAreaCentre
 } from './utils/utils';
 
 /** @internal */
@@ -77,7 +79,7 @@ export abstract class LayoutManager extends EventEmitter {
     /** @internal */
     private _resizeTimeoutId: ReturnType<typeof setTimeout> | undefined;
     /** @internal */
-    private _itemAreas: ContentItem.Area[] = [];
+    private _potentialDropZones: DropZone[] = [];
     /** @internal */
     private _maximisedStack: Stack | undefined;
     /** @internal */
@@ -1126,35 +1128,40 @@ export abstract class LayoutManager extends EventEmitter {
         globalThis.setTimeout(() => globalThis.close(), 1);
     }
 
-    /** TODO ASB: give more descriptive name.  'get drop zone for pointer position'?
-     * TODO ASB: maybe move this method too? 
+    /** TODO ASB: maybe move this method?   eg to drag-proxy  (it is inherently to do with dragging)
      * @internal
      */
-    getArea(x: number, y: number): ContentItem.Area | null {
-        let matchingArea = null;
-        let smallestSurface = Infinity;
+    getSelectedDropZoneForPointerPosition(pointerX: number, pointerY: number): DropZone | null {
+        let selectedDropZone: DropZone|null = null;
+        let smallestDistanceToCentre: number|null = null;
 
-        for (let i = 0; i < this._itemAreas.length; i++) {
-            const area = this._itemAreas[i];
+        // TODO ASB: refine logic to determine which drop zone should be selected.
+        // Old logic was to look for any that contain  the pointer, and if multiple choose the smallest.
+        // New logic TBD.  For now, which ever is closest to centre of hover zone?
+        // TODO ASB: reckon also worth taking size into account (e.g. when stack header is near the centre
+        //  of ground item edge drop zone) -- maybe if an area is completely contained by another area, then prefer
+        // the contained area even if pointer nearer the centre of the larger area?
 
-            if (
-                x > area.x1 &&
-                x < area.x2 &&
-                y > area.y1 &&
-                y < area.y2 &&
-                smallestSurface > area.surface
-            ) {
-                smallestSurface = area.surface;
-                matchingArea = area;
+        for (let i = 0; i < this._potentialDropZones.length; i++) {
+            const testDropZone = this._potentialDropZones[i];
+
+            if (areaContainsPoint(testDropZone.hoverArea, {x: pointerX, y: pointerY})) {
+                // TODO ASB would be good to cache area and centre on the area, to avoid repeated calculation
+                // during single drag
+                const areaCentre = getAreaCentre(testDropZone.hoverArea);
+                const distanceToCentre = (pointerX - areaCentre.x)**2 + (pointerY- areaCentre.y)**2;
+                if (smallestDistanceToCentre === null || distanceToCentre < smallestDistanceToCentre) {
+                    smallestDistanceToCentre = distanceToCentre;
+                    selectedDropZone = testDropZone;
+                }
             }
         }
-
-        return matchingArea;
+        return selectedDropZone;
     }
 
     /** TODO ASB: rename - calculate/gather available drop zones?
      *  @internal */
-    calculateItemAreas(): void {
+    retrieveDropZones(): DropZone[] {
         const allContentItems = this.getAllContentItems();
         /**
          * If the last item is dragged out, highlight the entire container size to
@@ -1167,32 +1174,31 @@ export abstract class LayoutManager extends EventEmitter {
         if (groundItem === undefined) {
             throw new UnexpectedUndefinedError('LMCIAR44365');
         }
-        if (allContentItems.length === 1) {
-            // No root ContentItem (just Ground ContentItem)
-            const groundArea = groundItem.getElementArea();
-            if (groundArea === null) {
-                throw new UnexpectedNullError('LMCIARA44365')
-            } else {
-                this._itemAreas = [groundArea];
-            }
-            return;
-        } else {
-            if (groundItem.contentItems[0].isStack) {
-                // if root is Stack, then split stack and sides of Layout are same, so skip sides
-                this._itemAreas = [];
-            } else {
-                // sides of layout
-                this._itemAreas = groundItem.createSideAreas();
-            }
+        this._potentialDropZones = groundItem.getAllDropZones();
 
-            for (let i = 0; i < allContentItems.length; i++) {
-                const stack = allContentItems[i];
-                if (ContentItem.isStack(stack)) {
-                    this._itemAreas.push(...stack.getDropAreas());
-                }
-                // TODO ASB: for row/column, also need to get drop areas
+        for (let i = 0; i < allContentItems.length; i++) {
+            const stack = allContentItems[i];
+            if (ContentItem.isStack(stack)) {
+                this._potentialDropZones.push(...stack.getDropZones());
             }
+            // TODO ASB: for row/column, also need to get drop areas
+
+            // for now, just get all the individual drop zones, filter to those that cover
+            // the pointer area, and then determine which of those wins
+            // (maybe which has its 'centre' closest to the pointer)
+
+            // future optimization: find the highest-level container that covers
+            // the pointer position. Get the drop-zone from that container that
+            // covers the pointer. (that would require asking the container for the
+            // single drop zone - because there could be overlaping rectangular hover areas,
+            // like the 4 body areas of a stack).
+            // Then recurse child containers and repeat.
+            // Will end up with a number of competing drop-zones.  Need to
+            // determing which of those 'wins'.
         }
+
+        // TODO ASB: weird to return member
+        return this._potentialDropZones;
     }
 
     /**

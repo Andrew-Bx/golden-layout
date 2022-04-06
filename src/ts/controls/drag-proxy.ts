@@ -7,7 +7,7 @@ import { DomConstants } from '../utils/dom-constants';
 import { DragListener } from '../utils/drag-listener';
 import { EventEmitter } from '../utils/event-emitter';
 import { getBodyOffset } from '../utils/utils';
-import { Side } from '../utils/types';
+import { AreaLinkedRect, DropZone, Side } from '../utils/types';
 import {
     getElementWidthAndHeight,
     numberToPixels
@@ -21,7 +21,7 @@ import {
  */
 export class DragProxy extends EventEmitter {
     /** currently selected drop zone */
-    private _area: ContentItem.Area | null = null;
+    private _selectedDropZone: DropZone | null = null;
     private _minX: number;
     private _minY: number;
     private _maxX: number;
@@ -41,7 +41,7 @@ export class DragProxy extends EventEmitter {
     constructor(x: number, y: number,
         private readonly _dragListener: DragListener,
         private readonly _layoutManager: LayoutManager,
-        private readonly _componentItem: ComponentItem,
+        private readonly _draggedComponent: ComponentItem,
         private readonly _originalParent: ContentItem) {
 
         super();
@@ -51,16 +51,16 @@ export class DragProxy extends EventEmitter {
 
         this.createDragProxyElements(x, y);
 
-        if (this._componentItem.parent === null) {
+        if (this._draggedComponent.parent === null) {
             // Note that _contentItem will have dummy GroundItem as parent if initiated by a external drag source
             throw new UnexpectedNullError('DPC10097');
         }
 
-        this._componentItemFocused = this._componentItem.focused;
+        this._componentItemFocused = this._draggedComponent.focused;
         if (this._componentItemFocused) {
-            this._componentItem.blur();
+            this._draggedComponent.blur();
         }
-        this._componentItem.parent.removeChild(this._componentItem, true);
+        this._draggedComponent.parent.removeChild(this._draggedComponent, true);
 
         this.setDimensions();
 
@@ -73,8 +73,8 @@ export class DragProxy extends EventEmitter {
             y = constrainedPosition.y;
         }
 
-        this._layoutManager.calculateItemAreas();
-        this.setDropPosition(x, y);
+        this._layoutManager.retrieveDropZones();
+        this.respondToDraggedPosition(x, y);
     }
 
     /** Create Stack-like structure to contain the dragged component */
@@ -108,9 +108,9 @@ export class DragProxy extends EventEmitter {
         }
         this._element.style.left = numberToPixels(initialX);
         this._element.style.top = numberToPixels(initialY);
-        tabElement.setAttribute('title', this._componentItem.title);
-        titleElement.insertAdjacentText('afterbegin', this._componentItem.title);
-        this._proxyContainerElement.appendChild(this._componentItem.element);
+        tabElement.setAttribute('title', this._draggedComponent.title);
+        titleElement.insertAdjacentText('afterbegin', this._draggedComponent.title);
+        this._proxyContainerElement.appendChild(this._draggedComponent.element);
     }
 
     private determineMinMaxXY(): void {
@@ -154,36 +154,36 @@ export class DragProxy extends EventEmitter {
         const y = event.pageY;
 
         if (!this._layoutManager.layoutConfig.settings.constrainDragToContainer) {
-            this.setDropPosition(x, y);
+            this.respondToDraggedPosition(x, y);
         } else {
             const isWithinContainer = x > this._minX && x < this._maxX && y > this._minY && y < this._maxY;
             if (isWithinContainer) {
-                this.setDropPosition(x, y);
+                this.respondToDraggedPosition(x, y);
             }
         }
 
-        this._componentItem.drag();
+        this._draggedComponent.drag();
     }
 
-    /**
-     * Sets the target position, highlighting the appropriate area
-     *
-     * @param x - The x position in px
-     * @param y - The y position in px
-     *
-     * @internal
-     */
-    private setDropPosition(x: number, y: number): void {
-        // TODO ASB: technically, this isn't setting the target position, but moving the drag proxy..
+    private respondToDraggedPosition(x: number, y: number): void {
+        this.updateDragProxyPosition(x, y);
+        this.highlightDropZoneForPosition(x, y);
+    }
+
+    private updateDragProxyPosition(x: number, y: number): void {
         this._element.style.left = numberToPixels(x);
         this._element.style.top = numberToPixels(y);
-        
-        const newArea = this._layoutManager.getArea(x, y);
+    }
+
+    private highlightDropZoneForPosition(x: number, y: number): void {
+        const selectedDropZone = this._layoutManager.getSelectedDropZoneForPointerPosition(x, y);
+
         // if newArea is null (ie current position is not a valid drop zone)
         // then keep the last valid drop zone
-        if (newArea !== null) {
-            this._area = newArea;
-            this._area.contentItem.highlightDropZone(x, y, this._area);
+        if (selectedDropZone !== null) {
+            this.highlightDropZone(selectedDropZone.highlightArea);
+            selectedDropZone.onHoverCallback?.();
+            this._selectedDropZone = selectedDropZone;
         }
         // TODO ASB: if area being set here were actually the specific drop zone (eg tab header)
         // then we could keep track of whether the newly selected area is the same as the old one,
@@ -191,6 +191,17 @@ export class DragProxy extends EventEmitter {
         // the tabDropPlaceholder, so that other non-stack content items don't need to know anything about it)
         // (could also clear up stack's contentItem array... or maybe should just tell all areas to clear-up
         //  when the item is dropped, ie the drag ends?)
+        //
+        // this.layoutManager.tabDropPlaceholder.remove();
+    }
+
+    private highlightDropZone(area: AreaLinkedRect): void {
+        // TODO ASB: move dropTargetIndicator from layoutManager to dragProxy class
+        const dropTargetIndicator = this._layoutManager.dropTargetIndicator;
+        if (dropTargetIndicator === null) {
+            throw new UnexpectedNullError('DPOD30010');
+        }
+        dropTargetIndicator.highlightArea(area);
     }
 
     /**
@@ -202,19 +213,18 @@ export class DragProxy extends EventEmitter {
         const dropTargetIndicator = this._layoutManager.dropTargetIndicator;
         if (dropTargetIndicator === null) {
             throw new UnexpectedNullError('DPOD30011');
-        } else {
-            dropTargetIndicator.hide();
         }
+        dropTargetIndicator.hide();
 
-        this._componentItem.exitDragMode();
+        this._draggedComponent.exitDragMode();
 
         /*
          * A valid drop area is currently highlighted
          */
         let droppedComponentItem: ComponentItem | undefined;
-        if (this._area !== null) {
-            droppedComponentItem = this._componentItem;
-            this._area.contentItem.onDrop(droppedComponentItem, this._area);
+        if (this._selectedDropZone !== null) {
+            droppedComponentItem = this._draggedComponent;
+            this._selectedDropZone.onDrop(droppedComponentItem);
 
             /**
              * No valid drop area found during the duration of the drag. Return
@@ -222,7 +232,7 @@ export class DragProxy extends EventEmitter {
              * (Which is not the case if the drag had been initiated by createDragSource)
              */
         } else if (this._originalParent) {
-            droppedComponentItem = this._componentItem;
+            droppedComponentItem = this._draggedComponent;
             this._originalParent.addChild(droppedComponentItem);
 
             /**
@@ -231,12 +241,12 @@ export class DragProxy extends EventEmitter {
              * content item.
              */
         } else {
-            this._componentItem.destroy(); // contentItem children are now destroyed as well
+            this._draggedComponent.destroy(); // contentItem children are now destroyed as well
         }
 
         this._element.remove();
 
-        this._layoutManager.emit('itemDropped', this._componentItem);
+        this._layoutManager.emit('itemDropped', this._draggedComponent);
 
         if (this._componentItemFocused && droppedComponentItem !== undefined) {
             droppedComponentItem.focus();
@@ -266,7 +276,7 @@ export class DragProxy extends EventEmitter {
         height -= (!this._sided ? headerHeight : 0);
         this._proxyContainerElement.style.width = numberToPixels(width);
         this._proxyContainerElement.style.height = numberToPixels(height);
-        this._componentItem.enterDragMode(width, height);
-        this._componentItem.show();
+        this._draggedComponent.enterDragMode(width, height);
+        this._draggedComponent.show();
     }
 }

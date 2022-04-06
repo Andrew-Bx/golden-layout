@@ -1,14 +1,15 @@
 import { ComponentItemConfig, ItemConfig, RowOrColumnItemConfig, StackItemConfig } from '../config/config';
 import { ResolvedComponentItemConfig, ResolvedGroundItemConfig, ResolvedHeaderedItemConfig, ResolvedItemConfig, ResolvedRootItemConfig, ResolvedStackItemConfig } from '../config/resolved-config';
-import { AssertError, UnexpectedNullError } from '../errors/internal-error';
+import { AssertError } from '../errors/internal-error';
 import { LayoutManager } from '../layout-manager';
 import { DomConstants } from '../utils/dom-constants';
-import { AreaLinkedRect, ItemType } from '../utils/types';
+import { DropZone, ItemType } from '../utils/types';
 import { getElementWidthAndHeight, setElementHeight, setElementWidth } from '../utils/utils';
 import { ComponentItem } from './component-item';
 import { ComponentParentableItem } from './component-parentable-item';
 import { ContentItem } from './content-item';
 import { RowOrColumn } from './row-or-column';
+import { Stack } from './stack';
 
 /**
  * GroundItem is the ContentItem whose one child is the root ContentItem (Root is planted in Ground).
@@ -17,6 +18,14 @@ import { RowOrColumn } from './row-or-column';
  * @internal
  */
 export class GroundItem extends ComponentParentableItem {
+    private static createElement(document: Document): HTMLDivElement {
+        const element = document.createElement('div');
+        element.classList.add(DomConstants.ClassName.GoldenLayout);
+        element.classList.add(DomConstants.ClassName.Item);
+        element.classList.add(DomConstants.ClassName.Root);
+        return element;
+    }
+
     private readonly _childElementContainer: HTMLElement;
     private readonly _containerElement: HTMLElement;
 
@@ -187,6 +196,7 @@ export class GroundItem extends ComponentParentableItem {
     /**
      * Adds a Root ContentItem.
      * Internal only.  To replace Root ContentItem with API, use {@link (LayoutManager:class).updateRootSize}
+     * @internal
      */
     override updateSize(force: boolean): void {
         this.layoutManager.beginVirtualSizedContainerAdding();
@@ -198,90 +208,184 @@ export class GroundItem extends ComponentParentableItem {
         }
     }
 
-    createSideAreas(): GroundItem.Area[] {
-        const areaSize = 50;
-
-        const oppositeSides = GroundItem.Area.oppositeSides;
-        const result = new Array<GroundItem.Area>(Object.keys(oppositeSides).length);
-        let idx = 0;
-
-        for (const key in oppositeSides) {
-            const side = key as keyof GroundItem.Area.Sides;
-            const area = this.getElementArea() as GroundItem.Area;
-            if (area === null) {
-                throw new UnexpectedNullError('RCSA77553');
-            } else {
-                area.side = side;
-                if (oppositeSides[side][1] === '2' )
-                    area[side] = area[oppositeSides[side]] - areaSize;
-                else
-                    area[side] = area[oppositeSides[side]] + areaSize;
-                area.surface = (area.x2 - area.x1) * (area.y2 - area.y1);
-                result[idx++] = area;
-            }
-        }
-
-        return result;
-    }
-
-    override highlightDropZone(x: number, y: number, area: AreaLinkedRect): void {
-        // TODO ASB: don't like that the ground-item needs to know anything about the tabDropPlaceholder
-        // which is really internal to Stacks...
-        // 
-        this.layoutManager.tabDropPlaceholder.remove();
-        super.highlightDropZone(x, y, area);
-    }
-
-    override onDrop(contentItem: ContentItem, area: GroundItem.Area): void {
-
-        if (contentItem.isComponent) {
-            const itemConfig = ResolvedStackItemConfig.createDefault();
-            // since ResolvedItemConfig.contentItems not set up, we need to add header from Component
-            const component = contentItem as ComponentItem;
-            itemConfig.header = ResolvedHeaderedItemConfig.Header.createCopy(component.headerConfig);
-            const stack = this.layoutManager.createAndInitContentItem(itemConfig, this);
-            stack.addChild(contentItem);
-            contentItem = stack;
-        }
-
+    /** @internal */
+    getAllDropZones(): DropZone[] {
+        const dropZones: DropZone[] = [];
+        
         if (this.contentItems.length === 0) {
-            this.addChild(contentItem);
-        } else {
-            /*
-             * If the contentItem that's being dropped is not dropped on a Stack (cases which just passed above and
-             * which would wrap the contentItem in a Stack) we need to check whether contentItem is a RowOrColumn.
-             * If it is, we need to re-wrap it in a Stack like it was when it was dragged by its Tab (it was dragged!).
-             */
-            if(contentItem.type === ItemType.row || contentItem.type === ItemType.column){
-                const itemConfig = ResolvedStackItemConfig.createDefault();
-                const stack = this.layoutManager.createContentItem(itemConfig, this);
-                stack.addChild(contentItem)
-                contentItem = stack
-            }
-
-            const type = area.side[0] == 'x' ? ItemType.row : ItemType.column;
-            const dimension = area.side[0] == 'x' ? 'width' : 'height';
-            const insertBefore = area.side[1] == '2';
-            const column = this.contentItems[0];
-            if (!(column instanceof RowOrColumn) || column.type !== type) {
-                const itemConfig = ResolvedItemConfig.createDefault(type);
-                const rowOrColumn = this.layoutManager.createContentItem(itemConfig, this);
-                this.replaceChild(column, rowOrColumn);
-                rowOrColumn.addChild(contentItem, insertBefore ? 0 : undefined, true);
-                rowOrColumn.addChild(column, insertBefore ? undefined : 0, true);
-                column[dimension] = 50;
-                contentItem[dimension] = 50;
-                rowOrColumn.updateSize(false);
-            } else {
-                const sibling = column.contentItems[insertBefore ? 0 : column.contentItems.length - 1]
-                column.addChild(contentItem, insertBefore ? 0 : undefined, true);
-                sibling[dimension] *= 0.5;
-                contentItem[dimension] = sibling[dimension];
-                column.updateSize(false);
-            }
+            // No root ContentItem (just Ground ContentItem)
+            dropZones.push(this.getDropZoneForEntireArea());
         }
+        else if (!this.contentItems[0].isStack) {
+            dropZones.push(...this.getEdgeDropZones());
+        }
+        return dropZones;
     }
 
+    private getDropZoneForEntireArea(): DropZone {
+        const entireArea = this.getElementArea();
+        return {
+            description: `whole ground item`,
+            contentItem: this,
+            onDrop: (droppedItem: ComponentItem) => {
+                // TODO ASB: Still need to wrap ths component in a stack...
+                //  .... although it might be nicer if RowOrColumn was responsible for wrapping an added component in a stack?
+                const newStack = this.wrapItemInStack(droppedItem);
+
+                // TODO ASB: once we support 'fixed' row/columns, will have to support empty stacks in
+                //   the layout, and thus possibility of dropping onto an empty stack.  In that case,
+                //   easier to make an 'empty ground item' actually be an empty stack, and not have to deal
+                //   with this explicitly here?
+                this.addChild(newStack);
+            },
+            hoverArea: {...entireArea},
+            highlightArea: {...entireArea}
+        };
+    }
+
+    private getEdgeDropZones(): DropZone[] {
+        const dropZones: DropZone[] = [];
+        if (this.contentItems[0].isRow) {
+            dropZones.push(...this.getTopBottomEdgeDropZones());
+        }
+        else if (this.contentItems[0].isColumn) {
+            dropZones.push(...this.getLeftRightEdgeDropZones());
+        }
+        // else, for a stack don't get any edge drop zones (the stack will provide them itself)
+
+        return dropZones;
+    }
+
+    private getLeftRightEdgeDropZones(): DropZone[] {
+        const area = this.getElementArea();
+        const halfWidth = (area.x2 - area.x1) / 2;
+        
+        const hoverAreaWidth = halfWidth;
+        const highlightAreaWidth = Math.min(halfWidth, 50); // TODO ASB: minus splitter width?
+
+        const dropZones: DropZone[] = [
+            {
+                description: 'ground item left edge',
+                contentItem: this,
+                onDrop: (droppedItem: ComponentItem) => {
+                    this.wrapChildInContainerAndAddItem(ItemType.row, droppedItem, 0);
+                },
+                hoverArea: {
+                    x1: area.x1,
+                    x2: area.x1 + hoverAreaWidth,
+                    y1: area.y1,
+                    y2: area.y2
+                },
+                highlightArea: {
+                    x1: area.x1,
+                    x2: area.x1 + highlightAreaWidth,
+                    y1: area.y1,
+                    y2: area.y2
+                }
+            },
+            {
+                description: 'ground item right edge',
+                contentItem: this,
+                onDrop: (droppedItem: ComponentItem) => {
+                    this.wrapChildInContainerAndAddItem(ItemType.row, droppedItem, undefined);
+                },
+                hoverArea: {
+                    x1: area.x2 - hoverAreaWidth,
+                    x2: area.x2,
+                    y1: area.y1,
+                    y2: area.y2
+                },
+                highlightArea: {
+                    x1: area.x2 - highlightAreaWidth,
+                    x2: area.x1,
+                    y1: area.y1,
+                    y2: area.y2
+                }
+            }
+        ];
+        return dropZones;
+    }
+
+    private getTopBottomEdgeDropZones(): DropZone[] {
+        const area = this.getElementArea();
+        const halfHeight = (area.y2 - area.y1) / 2;
+        
+        const hoverAreaHeight = halfHeight;
+        const highlightAreaHeight = Math.min(halfHeight, 50); // TODO ASB: minus splitter width?
+
+        const dropZones: DropZone[] = [
+            {
+                description: 'ground item top edge',
+                contentItem: this,
+                onDrop: (droppedItem: ComponentItem) => {
+                    this.wrapChildInContainerAndAddItem(ItemType.column, droppedItem, 0);
+                },
+                hoverArea: {
+                    x1: area.x1,
+                    x2: area.x2,
+                    y1: area.y1,
+                    y2: area.y1 + hoverAreaHeight
+                },
+                highlightArea: {
+                    x1: area.x1,
+                    x2: area.x2,
+                    y1: area.y1,
+                    y2: area.y1 + highlightAreaHeight
+                }
+            },
+            {
+                description: 'ground item bottom edge',
+                contentItem: this,
+                onDrop: (droppedItem: ComponentItem) => {
+                    this.wrapChildInContainerAndAddItem(ItemType.column, droppedItem, undefined);
+                },
+                hoverArea: {
+                    x1: area.x1,
+                    x2: area.x2,
+                    y1: area.y2 - hoverAreaHeight,
+                    y2: area.y2
+                },
+                highlightArea: {
+                    x1: area.x1,
+                    x2: area.x2,
+                    y1: area.y2 - highlightAreaHeight,
+                    y2: area.y2
+                }
+            }
+        ];
+        return dropZones;
+    }
+
+    private wrapItemInStack(item: ComponentItem): Stack {
+        const stackConfig = ResolvedStackItemConfig.createDefault();
+        stackConfig.header = ResolvedHeaderedItemConfig.Header.createCopy(item.headerConfig);
+        const newStack = this.layoutManager.createAndInitContentItem(stackConfig, this) as Stack;
+        newStack.addChild(item);
+        return newStack;
+    }
+
+    private wrapChildInContainerAndAddItem(
+        containerType: Extract<ItemType, 'row'|'column'>,
+        itemToAdd: ComponentItem,
+        addAtPosition: number|undefined): void {
+
+        const currentChild = this.contentItems[0];
+
+        // TODO ASB: Still need to wrap ths component in a stack...
+        //  .... although it might be nicer if RowOrColumn was responsible for wrapping an added component in a stack?
+        const newStack = this.wrapItemInStack(itemToAdd);
+
+        const wrapperContainerConfig = ResolvedItemConfig.createDefault(containerType);
+        const wrapperContainer = this.layoutManager.createContentItem(wrapperContainerConfig, this) as RowOrColumn;
+        this.replaceChild(currentChild, wrapperContainer);
+        wrapperContainer.addChild(currentChild);
+        wrapperContainer.addChild(newStack, addAtPosition, true);
+        currentChild[wrapperContainer.dimension] = 50;
+        newStack[wrapperContainer.dimension] = 50;
+        wrapperContainer.updateSize(false);   
+    }
+
+    // TODO ASB: remove obsolete function?
     // No ContentItem can dock with groundItem.  However Stack can have a GroundItem parent and Stack requires that
     // its parent implement dock() function.  Accordingly this function is implemented but throws an exception as it should
     // never be called
@@ -289,6 +393,7 @@ export class GroundItem extends ComponentParentableItem {
         throw new AssertError('GID87731');
     }
 
+    // TODO ASB: remove obsolete function?
     // No ContentItem can dock with groundItem.  However Stack can have a GroundItem parent and Stack requires that
     // its parent implement validateDocking() function.  Accordingly this function is implemented but throws an exception as it should
     // never be called
@@ -349,8 +454,7 @@ export class GroundItem extends ComponentParentableItem {
         }
     }
 
-    // TODO ASB: maybe not needed any more?
-    //    maybe static, not really specific to ground-item ?
+    // TODO ASB maybe static, not really specific to ground-item ?
     private deepGetAllContentItems(content: readonly ContentItem[], result: ContentItem[]): void {
         for (let i = 0; i < content.length; i++) {
             const contentItem = content[i];
@@ -371,37 +475,4 @@ export class GroundItem extends ComponentParentableItem {
         }
     }
 
-}
-
-/** @internal */
-export namespace GroundItem {
-    export interface Area extends ContentItem.Area {
-        side: keyof typeof Area.Side;
-    }
-
-    export namespace Area {
-        export const enum Side {
-            y2,
-            x2,
-            y1,
-            x1,
-        }
-
-        export type Sides = { [side in keyof typeof Side]: keyof typeof Side; }
-
-        export const oppositeSides: Sides = {
-            y2: 'y1',
-            x2: 'x1',
-            y1: 'y2',
-            x1: 'x2',
-        };
-    }
-
-    export function createElement(document: Document): HTMLDivElement {
-        const element = document.createElement('div');
-        element.classList.add(DomConstants.ClassName.GoldenLayout);
-        element.classList.add(DomConstants.ClassName.Item);
-        element.classList.add(DomConstants.ClassName.Root);
-        return element;
-    }
 }

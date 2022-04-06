@@ -236,17 +236,6 @@ export class Header extends EventEmitter {
     }
 
     /**
-     * Programmatically set closability.
-     * @param value - Whether to enable/disable closability.
-     * @returns Whether the action was successful
-     * @internal
-     */
-    setRowColumnClosable(value: boolean): void {
-        this._rowColumnClosable = value;
-        this.updateClosability();
-    }
-
-    /**
      * Updates the header's closability. If a stack/header is able
      * to close, but has a non closable component added to it, the stack is no
      * longer closable until all components are closable.

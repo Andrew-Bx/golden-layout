@@ -4,7 +4,7 @@ import { AssertError, UnexpectedNullError } from '../errors/internal-error'
 import { LayoutManager } from '../layout-manager'
 import { EventEmitter } from '../utils/event-emitter'
 import { getBodyOffset } from '../utils/utils'
-import { AreaLinkedRect, ItemType } from '../utils/types'
+import { AreaLinkedRect, DropZone, ItemType } from '../utils/types'
 import { getUniqueId, setElementDisplayVisibility } from '../utils/utils'
 import { ComponentItem } from './component-item'
 import { ComponentParentableItem } from './component-parentable-item'
@@ -157,12 +157,13 @@ export abstract class ContentItem extends EventEmitter {
             /**
              * If this was the last content item, remove this node as well
              */
+            // TODO ASB: whether to remove empty container... 
+            // in the case of ground item, want to keep empty stack?
             if (!this.isGround && this._isClosable === true) {
                 if (this._parent === null) {
                     throw new UnexpectedNullError('CIUC00874');
-                } else {
-                    this._parent.removeChild(this);
                 }
+                this._parent.removeChild(this);
             }
         }
     }
@@ -278,22 +279,6 @@ export abstract class ContentItem extends EventEmitter {
     }
 
     /** @internal */
-    highlightDropZone(x: number, y: number, area: AreaLinkedRect): void {
-        const dropTargetIndicator = this.layoutManager.dropTargetIndicator;
-        if (dropTargetIndicator === null) {
-            throw new UnexpectedNullError('ACIHDZ5593');
-        } else {
-            dropTargetIndicator.highlightArea(area);
-        }
-    }
-
-    /** @internal */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    onDrop(contentItem: ContentItem, area: ContentItem.Area): void {
-        this.addChild(contentItem);
-    }
-
-    /** @internal */
     show(): void {
         this.layoutManager.beginSizeInvalidation();
         try {
@@ -342,7 +327,7 @@ export abstract class ContentItem extends EventEmitter {
             y1: offset.top + 1,
             x2: offset.left + width - 1,
             y2: offset.top + height - 1,
-            surface: width * height,
+            surface: width * height, // TODO ASB probably don't need this anymore?
             contentItem: this
         };
     }

@@ -20,6 +20,9 @@ import { ContentItem } from './content-item'
 /** @public */
 export class RowOrColumn extends ContentItem {
     /** @internal */
+    public readonly dimension: WidthOrHeightPropertyName;
+    
+    /** @internal */
     private readonly _childElementContainer: HTMLElement;
     /** @internal */
     private readonly _configType: 'row' | 'column';
@@ -29,8 +32,6 @@ export class RowOrColumn extends ContentItem {
     private readonly _splitterSize: number;
     /** @internal */
     private readonly _splitterGrabSize: number;
-    /** @internal */
-    private readonly _dimension: WidthOrHeightPropertyName;
     /** @internal */
     private readonly _splitter: Splitter[] = [];
     /** @internal */
@@ -54,7 +55,7 @@ export class RowOrColumn extends ContentItem {
         this._splitterSize = layoutManager.layoutConfig.dimensions.borderWidth;
         this._splitterGrabSize = layoutManager.layoutConfig.dimensions.borderGrabWidth;
         this._isColumn = isColumn;
-        this._dimension = isColumn ? 'height' : 'width';
+        this.dimension = isColumn ? 'height' : 'width';
         this._splitterPosition = null;
         this._splitterMinPosition = null;
         this._splitterMaxPosition = null;
@@ -155,10 +156,10 @@ export class RowOrColumn extends ContentItem {
 
         for (let i = 0; i < this.contentItems.length; i++) {
             if (this.contentItems[i] === contentItem) {
-                contentItem[this._dimension] = newItemSize;
+                contentItem[this.dimension] = newItemSize;
             } else {
-                const itemSize = this.contentItems[i][this._dimension] *= (100 - newItemSize) / 100;
-                this.contentItems[i][this._dimension] = itemSize;
+                const itemSize = this.contentItems[i][this.dimension] *= (100 - newItemSize) / 100;
+                this.contentItems[i][this.dimension] = itemSize;
             }
         }
 
@@ -208,9 +209,9 @@ export class RowOrColumn extends ContentItem {
      * Replaces a child of this Row or Column with another contentItem
      */
     override replaceChild(oldChild: ContentItem, newChild: ContentItem): void {
-        const size = oldChild[this._dimension];
+        const size = oldChild[this.dimension];
         super.replaceChild(oldChild, newChild);
-        newChild[this._dimension] = size;
+        newChild[this.dimension] = size;
         this.updateSize(false);
         this.emitBaseBubblingEvent('stateChanged');
     }
@@ -373,8 +374,8 @@ export class RowOrColumn extends ContentItem {
         const itemsWithoutSetDimension: ContentItem[] = [];
 
         for (let i = 0; i < this.contentItems.length; i++) {
-            if (this.contentItems[i][this._dimension] !== undefined) {
-                total += this.contentItems[i][this._dimension];
+            if (this.contentItems[i][this.dimension] !== undefined) {
+                total += this.contentItems[i][this.dimension];
             } else {
                 itemsWithoutSetDimension.push(this.contentItems[i]);
             }
@@ -393,7 +394,7 @@ export class RowOrColumn extends ContentItem {
          */
         if (Math.round(total) < 100 && itemsWithoutSetDimension.length > 0) {
             for (let i = 0; i < itemsWithoutSetDimension.length; i++) {
-                itemsWithoutSetDimension[i][this._dimension] = (100 - total) / itemsWithoutSetDimension.length;
+                itemsWithoutSetDimension[i][this.dimension] = (100 - total) / itemsWithoutSetDimension.length;
             }
             this.respectMinItemWidth();
             return;
@@ -407,7 +408,7 @@ export class RowOrColumn extends ContentItem {
          */
         if (Math.round(total) > 100) {
             for (let i = 0; i < itemsWithoutSetDimension.length; i++) {
-                itemsWithoutSetDimension[i][this._dimension] = 50;
+                itemsWithoutSetDimension[i][this.dimension] = 50;
                 total += 50;
             }
         }
@@ -416,7 +417,7 @@ export class RowOrColumn extends ContentItem {
          * Set every items size relative to 100 relative to its size to total
          */
         for (let i = 0; i < this.contentItems.length; i++) {
-            this.contentItems[i][this._dimension] = (this.contentItems[i][this._dimension] / total) * 100;
+            this.contentItems[i][this.dimension] = (this.contentItems[i][this.dimension] / total) * 100;
         }
 
         this.respectMinItemWidth();
@@ -574,8 +575,8 @@ export class RowOrColumn extends ContentItem {
         const afterMinSize = this._isColumn ? afterMinDim.vertical : afterMinDim.horizontal;
 
         this._splitterPosition = 0;
-        this._splitterMinPosition = -1 * (pixelsToNumber(items.before.element.style[this._dimension]) - (beforeMinSize || minSize));
-        this._splitterMaxPosition = pixelsToNumber(items.after.element.style[this._dimension]) - (afterMinSize || minSize);
+        this._splitterMinPosition = -1 * (pixelsToNumber(items.before.element.style[this.dimension]) - (beforeMinSize || minSize));
+        this._splitterMaxPosition = pixelsToNumber(items.after.element.style[this.dimension]) - (afterMinSize || minSize);
     }
 
     /**
@@ -616,13 +617,13 @@ export class RowOrColumn extends ContentItem {
             throw new UnexpectedNullError('ROCOSDS66932');
         } else {
             const items = this.getItemsForSplitter(splitter);
-            const sizeBefore = pixelsToNumber(items.before.element.style[this._dimension]);
-            const sizeAfter = pixelsToNumber(items.after.element.style[this._dimension]);
+            const sizeBefore = pixelsToNumber(items.before.element.style[this.dimension]);
+            const sizeAfter = pixelsToNumber(items.after.element.style[this.dimension]);
             const splitterPositionInRange = (this._splitterPosition + sizeBefore) / (sizeBefore + sizeAfter);
-            const totalRelativeSize = items.before[this._dimension] + items.after[this._dimension];
+            const totalRelativeSize = items.before[this.dimension] + items.after[this.dimension];
 
-            items.before[this._dimension] = splitterPositionInRange * totalRelativeSize;
-            items.after[this._dimension] = (1 - splitterPositionInRange) * totalRelativeSize;
+            items.before[this.dimension] = splitterPositionInRange * totalRelativeSize;
+            items.after[this.dimension] = (1 - splitterPositionInRange) * totalRelativeSize;
 
             splitter.element.style.top = numberToPixels(0);
             splitter.element.style.left = numberToPixels(0);

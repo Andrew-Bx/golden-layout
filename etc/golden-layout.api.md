@@ -294,7 +294,7 @@ export abstract class ContentItem extends EventEmitter {
     // (undocumented)
     get element(): HTMLElement;
     // @internal
-    getElementArea(element?: HTMLElement): ContentItem.Area | null;
+    getElementArea(element?: HTMLElement): ContentItem.Area;
     // @internal (undocumented)
     height: number;
     // @internal (undocumented)
@@ -335,7 +335,7 @@ export abstract class ContentItem extends EventEmitter {
     // @internal (undocumented)
     minWidth: number;
     // @internal (undocumented)
-    onDrop(contentItem: ContentItem, area: ContentItem.Area): void;
+    onDrop(droppedItem: ComponentItem, dropZone: DropZone): void;
     // (undocumented)
     get parent(): ContentItem | null;
     // @internal (undocumented)
@@ -399,6 +399,19 @@ export namespace DragSource {
         // (undocumented)
         type: JsonValue;
     }
+}
+
+// Warning: (ae-internal-missing-underscore) The name "DropZone" should be prefixed with an underscore because the declaration is marked as @internal
+//
+// @internal (undocumented)
+export interface DropZone {
+    // (undocumented)
+    contentItem: ContentItem;
+    extraInfo?: unknown;
+    // (undocumented)
+    highlightArea: AreaLinkedRect;
+    // (undocumented)
+    hoverArea: AreaLinkedRect;
 }
 
 // @public
@@ -686,8 +699,6 @@ export class Header extends EventEmitter {
     processMinimised(): void;
     // @internal
     removeTab(componentItem: ComponentItem): void;
-    // @internal
-    setRowColumnClosable(value: boolean): void;
     // @internal (undocumented)
     setSide(value: Side): void;
     // (undocumented)
@@ -1020,8 +1031,6 @@ export abstract class LayoutManager extends EventEmitter {
     beginVirtualSizedContainerAdding(): void;
     // @internal (undocumented)
     abstract bindComponent(container: ComponentContainer, itemConfig: ResolvedComponentItemConfig): ComponentContainer.BindableComponent;
-    // @internal (undocumented)
-    calculateItemAreas(): void;
     // (undocumented)
     checkMinimiseMaximisedStack(): void;
     clear(): void;
@@ -1062,8 +1071,8 @@ export abstract class LayoutManager extends EventEmitter {
     focusComponent(item: ComponentItem, suppressEvent?: boolean): void;
     // (undocumented)
     get focusedComponentItem(): ComponentItem | undefined;
-    // @internal (undocumented)
-    getArea(x: number, y: number): ContentItem.Area | null;
+    // @internal
+    getSelectedDropZoneForPointerPosition(pointerX: number, pointerY: number): DropZone | null;
     // Warning: (ae-forgotten-export) The symbol "GroundItem" needs to be exported by the entry point index.d.ts
     //
     // @internal (undocumented)
@@ -1097,6 +1106,8 @@ export abstract class LayoutManager extends EventEmitter {
     resizeDebounceExtendedWhenPossible: boolean;
     resizeDebounceInterval: number;
     resizeWithContainerAutomatically: boolean;
+    // @internal
+    retrieveDropZones(): DropZone[];
     // @internal @deprecated (undocumented)
     get root(): GroundItem | undefined;
     // (undocumented)
@@ -1710,7 +1721,7 @@ export class Stack extends ComponentParentableItem {
     // @deprecated (undocumented)
     getActiveContentItem(): ContentItem | null;
     // @internal (undocumented)
-    getArea(): ContentItem.Area | null;
+    getDropZones(): DropZone[];
     // (undocumented)
     get header(): Header;
     // (undocumented)
@@ -1736,7 +1747,7 @@ export class Stack extends ComponentParentableItem {
     // (undocumented)
     newItem(itemConfig: ComponentItemConfig, index?: number): ContentItem;
     // @internal
-    onDrop(contentItem: ContentItem, area: ContentItem.Area): void;
+    onDrop(droppedItem: ComponentItem, dropZone: DropZone): void;
     // @internal
     positionHeader(position: Side): void;
     // (undocumented)
@@ -1747,8 +1758,6 @@ export class Stack extends ComponentParentableItem {
     setActiveContentItem(item: ContentItem): void;
     // @internal (undocumented)
     setFocusedValue(value: boolean): void;
-    // @internal (undocumented)
-    setRowColumnClosable(value: boolean): void;
     // (undocumented)
     get stackParent(): ContentItem;
     // (undocumented)

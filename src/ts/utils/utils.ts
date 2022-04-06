@@ -1,4 +1,4 @@
-import { LeftAndTop, WidthAndHeight } from './types';
+import { AreaLinkedRect, LeftAndTop, WidthAndHeight } from './types';
 
 /** @internal */
 export function numberToPixels(value: number): string {
@@ -65,6 +65,22 @@ export function getBodyOffset(element: HTMLElement): LeftAndTop {
         top: rect.top + document.body.scrollTop,
         left: rect.left + document.body.scrollLeft,
     }
+}
+
+/** @internal */
+export function areaContainsPoint(area: AreaLinkedRect, point: {x: number, y: number}): boolean {
+    const areaContainsPoint = 
+        point.x > area.x1 &&
+        point.x < area.x2 &&
+        point.y > area.y1 &&
+        point.y < area.y2;
+    return areaContainsPoint;
+}
+
+export function getAreaCentre(area: AreaLinkedRect): {x: number, y: number} {
+    const midX = (area.x1 + area.x2) / 2;
+    const midY = (area.y1 + area.y2) / 2;
+    return {x: midX, y: midY};
 }
 
 /**

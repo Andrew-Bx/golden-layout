@@ -1,13 +1,13 @@
 import { ComponentItemConfig, ItemConfig } from '../config/config';
 import { ResolvedComponentItemConfig, ResolvedHeaderedItemConfig, ResolvedItemConfig, ResolvedStackItemConfig } from '../config/resolved-config';
 import { Header } from '../controls/header';
-import { AssertError, UnexpectedNullError, UnexpectedUndefinedError } from '../errors/internal-error';
+import { AssertError, UnexpectedNullError } from '../errors/internal-error';
 import { LayoutManager } from '../layout-manager';
 import { DomConstants } from '../utils/dom-constants';
 import { DragListener } from '../utils/drag-listener';
 import { EventEmitter } from '../utils/event-emitter';
 import { getBodyOffset } from '../utils/utils';
-import { AreaLinkedRect, ItemType, JsonValue, Side, WidthAndHeight, WidthOrHeightPropertyName } from '../utils/types';
+import { AreaLinkedRect, DropZone, ItemType, JsonValue, Side, WidthAndHeight, WidthOrHeightPropertyName } from '../utils/types';
 import {
     getElementHeight,
     getElementWidth,
@@ -18,9 +18,17 @@ import {
 import { ComponentItem } from './component-item';
 import { ComponentParentableItem } from './component-parentable-item';
 import { ContentItem } from './content-item';
+import { RowOrColumn } from './row-or-column';
 
 /** @public */
 export class Stack extends ComponentParentableItem {
+    private static createElement(document: Document): HTMLDivElement {
+        const element = document.createElement('div');
+        element.classList.add(DomConstants.ClassName.Item);
+        element.classList.add(DomConstants.ClassName.Stack);
+        return element;
+    }
+
     /** @internal */
     private readonly _headerConfig: ResolvedHeaderedItemConfig.Header | undefined;
     /** @internal */
@@ -31,12 +39,6 @@ export class Stack extends ComponentParentableItem {
     private readonly _maximisedEnabled: boolean;
     /** @internal */
     private _activeComponentItem: ComponentItem | undefined;
-    /** @internal */
-    private _dropSegment: Stack.Segment;
-    /** @internal */
-    private _dropIndex: number;
-    /** @internal */
-    private _contentAreaDimensions: Stack.ContentAreaDimensions;
     /** @internal */
     private _headerSideChanged = false;
     /** @internal */
@@ -56,8 +58,6 @@ export class Stack extends ComponentParentableItem {
     get headerShow(): boolean { return this._header.show; }
     get headerSide(): Side { return this._header.side; }
     get headerLeftRightSided(): boolean { return this._header.leftRightSided; }
-    /** @internal */
-    get contentAreaDimensions(): Stack.ContentAreaDimensions | undefined { return this._contentAreaDimensions; }
     /** @internal */
     get initialWantMaximise(): boolean { return this._initialWantMaximise; }
     get isMaximised(): boolean { return this === this.layoutManager.maximisedStack; }
@@ -124,8 +124,6 @@ export class Stack extends ComponentParentableItem {
             (x, y, dragListener, item) => this.handleHeaderComponentStartDragEvent(x, y, dragListener, item),
         );
 
-        // this._dropZones = {};
-
         this.isStack = true;
 
         this._childElementContainer = document.createElement('section');
@@ -172,22 +170,19 @@ export class Stack extends ComponentParentableItem {
         if (contentItemCount > 0) { // contentItemCount will be 0 on drag drop
             if (this._initialActiveItemIndex < 0 || this._initialActiveItemIndex >= contentItemCount) {
                 throw new Error(`ActiveItemIndex out of range: ${this._initialActiveItemIndex} id: ${this.id}`);
-            } else {
-                for (let i = 0; i < contentItemCount; i++) {
-                    const contentItem = contentItems[i];
-                    if (!(contentItem instanceof ComponentItem)) {
-                        throw new Error(`Stack Content Item is not of type ComponentItem: ${i} id: ${this.id}`);
-                    } else {
-                        this._header.createTab(contentItem, i);
-                        contentItem.hide();
-                        contentItem.container.setBaseLogicalZIndex();
-                    }
-                }
-
-                this.setActiveComponentItem(contentItems[this._initialActiveItemIndex] as ComponentItem, false);
-
-                this._header.updateTabSizes();
             }
+            for (let i = 0; i < contentItemCount; i++) {
+                const contentItem = contentItems[i];
+                if (!(contentItem instanceof ComponentItem)) {
+                    throw new Error(`Stack Content Item is not of type ComponentItem: ${i} id: ${this.id}`);
+                }
+                this._header.createTab(contentItem, i);
+                contentItem.hide();
+                contentItem.container.setBaseLogicalZIndex();
+            }
+
+            this.setActiveComponentItem(contentItems[this._initialActiveItemIndex] as ComponentItem, false);
+            this._header.updateTabSizes();
         }
 
         this._header.updateClosability();
@@ -198,32 +193,30 @@ export class Stack extends ComponentParentableItem {
     setActiveContentItem(item: ContentItem): void {
         if (!ContentItem.isComponentItem(item)) {
             throw new Error('Stack.setActiveContentItem: item is not a ComponentItem');
-        } else {
-            this.setActiveComponentItem(item, false);
         }
+        this.setActiveComponentItem(item, false);
     }
 
     setActiveComponentItem(componentItem: ComponentItem, focus: boolean, suppressFocusEvent = false): void {
         if (this._activeComponentItem !== componentItem) {
             if (this.contentItems.indexOf(componentItem) === -1) {
                 throw new Error('componentItem is not a child of this stack');
-            } else {
-                this.layoutManager.beginSizeInvalidation();
-                try {
-                    if (this._activeComponentItem !== undefined) {
-                        this._activeComponentItem.hide();
-                    }
-                    this._activeComponentItem = componentItem;
-                    this._header.processActiveComponentChanged(componentItem);
-                    componentItem.show();
-                } finally {
-                    this.layoutManager.endSizeInvalidation();
-                }
-
-                this.emit('activeContentItemChanged', componentItem);
-                this.layoutManager.emit('activeContentItemChanged', componentItem);
-                this.emitStateChangedEvent();
             }
+            this.layoutManager.beginSizeInvalidation();
+            try {
+                if (this._activeComponentItem !== undefined) {
+                    this._activeComponentItem.hide();
+                }
+                this._activeComponentItem = componentItem;
+                this._header.processActiveComponentChanged(componentItem);
+                componentItem.show();
+            } finally {
+                this.layoutManager.endSizeInvalidation();
+            }
+
+            this.emit('activeContentItemChanged', componentItem);
+            this.layoutManager.emit('activeContentItemChanged', componentItem);
+            this.emitStateChangedEvent();
         }
 
         if (this.focused || focus) {
@@ -249,11 +242,6 @@ export class Stack extends ComponentParentableItem {
     override setFocusedValue(value: boolean): void {
         this._header.applyFocusedValue(value);
         super.setFocusedValue(value);
-    }
-
-    /** @internal */
-    setRowColumnClosable(value: boolean): void {
-        this._header.setRowColumnClosable(value);
     }
 
     newComponent(componentType: JsonValue, componentState?: JsonValue, title?: string, index?: number): ComponentItem {
@@ -291,24 +279,22 @@ export class Stack extends ComponentParentableItem {
 
     override addChild(contentItem: ContentItem, index?: number, focus = false): number {
         if(index !== undefined && index > this.contentItems.length){
-            index -= 1;
             throw new AssertError('SAC99728'); // undisplayChild() removed so this condition should no longer occur
         }
 
         if (!(contentItem instanceof ComponentItem)) {
             throw new AssertError('SACC88532'); // Stacks can only have Component children
-        } else {
-            index = super.addChild(contentItem, index);
-            this._childElementContainer.appendChild(contentItem.element);
-            this._header.createTab(contentItem, index);
-            this.setActiveComponentItem(contentItem, focus);
-            this._header.updateTabSizes();
-            this.updateSize(false);
-            contentItem.container.setBaseLogicalZIndex();
-            this._header.updateClosability();
-            this.emitStateChangedEvent();
-            return index;
         }
+        index = super.addChild(contentItem, index);
+        this._childElementContainer.appendChild(contentItem.element);
+        this._header.createTab(contentItem, index);
+        this.setActiveComponentItem(contentItem, focus);
+        this._header.updateTabSizes();
+        this.updateSize(false);
+        contentItem.container.setBaseLogicalZIndex();
+        this._header.updateClosability();
+        this.emitStateChangedEvent();
+        return index;
     }
 
     override removeChild(contentItem: ContentItem, keepChild: boolean): void {
@@ -409,220 +395,64 @@ export class Stack extends ComponentParentableItem {
         }
         if (this.contentItems.length > 0 && activeItemIndex === undefined) {
             throw new Error('expected non-empty stack to have an active component item');
-        } else {
-            const result: ResolvedStackItemConfig = {
-                type: 'stack',
-                content: this.calculateConfigContent() as ResolvedComponentItemConfig[],
-                width: this.width,
-                minWidth: this.minWidth,
-                height: this.height,
-                minHeight: this.minHeight,
-                id: this.id,
-                isClosable: this.isClosable,
-                maximised: this.isMaximised,
-                header: this.createHeaderConfig(),
-                activeItemIndex,
-            }
-            return result;
         }
+        const result: ResolvedStackItemConfig = {
+            type: 'stack',
+            content: this.calculateConfigContent() as ResolvedComponentItemConfig[],
+            width: this.width,
+            minWidth: this.minWidth,
+            height: this.height,
+            minHeight: this.minHeight,
+            id: this.id,
+            isClosable: this.isClosable,
+            maximised: this.isMaximised,
+            header: this.createHeaderConfig(),
+            activeItemIndex,
+        }
+        return result;
     }
 
-    /**
-     * Ok, this one is going to be the tricky one: The user has dropped a {@link (ContentItem:class)} onto this stack.
-     *
-     * It was dropped on either the stacks header or the top, right, bottom or left bit of the content area
-     * (which one of those is stored in this._dropSegment). Now, if the user has dropped on the header the case
-     * is relatively clear: We add the item to the existing stack... job done (might be good to have
-     * tab reordering at some point, but lets not sweat it right now)
-     *
-     * If the item was dropped on the content part things are a bit more complicated. If it was dropped on either the
-     * top or bottom region we need to create a new column and place the items accordingly.
-     * Unless, of course if the stack is already within a column... in which case we want
-     * to add the newly created item to the existing column...
-     * either prepend or append it, depending on wether its top or bottom.
-     *
-     * Same thing for rows and left / right drop segments... so in total there are 9 things that can potentially happen
-     * (left, top, right, bottom) * is child of the right parent (row, column) + header drop
-     *
-     * @internal
-     */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    override onDrop(contentItem: ContentItem, area: ContentItem.Area): void {
-        /*
-         * The item was dropped on the header area. Just add it as a child of this stack and
-         * get the hell out of this logic
-         */
-        if (this._dropSegment === Stack.Segment.Header) {
-            this.resetHeaderDropZone();
-            if (this._dropIndex === undefined) {
-                throw new UnexpectedUndefinedError('SODDI68990');
-            }
-            this.addChild(contentItem, this._dropIndex);
-            return;
-        }
+    /** Split this stack into a row or column, and add a new item to that row/column */
+    private splitStackAndAddItem(
+        splitType: Extract<ItemType, 'row'|'column'>,
+        itemToAdd: ContentItem,
+        addAtPosition: number|undefined) {
 
-        /*
-         * The stack is empty. Let's just add the element.
-         */
-        if (this._dropSegment === Stack.Segment.Body) {
-            this.addChild(contentItem, 0, true);
-            return;
-        }
+        // TODO ASB: move this logic into row/column?
+        // wrap the component in a stack
+        const stackConfig = ResolvedStackItemConfig.createDefault();
+        stackConfig.header = this.createHeaderConfig();
+        const stackWithAddedItem = this.layoutManager.createAndInitContentItem(stackConfig, this);
+        stackWithAddedItem.addChild(itemToAdd);
 
-        /*
-         * The item was dropped on the top-, left-, bottom- or right- part of the content. Let's
-         * aggregate some conditions to make the if statements later on more readable
-         */
-        const isVertical = this._dropSegment === Stack.Segment.Top || this._dropSegment === Stack.Segment.Bottom;
-        const isHorizontal = this._dropSegment === Stack.Segment.Left || this._dropSegment === Stack.Segment.Right;
-        const insertBefore = this._dropSegment === Stack.Segment.Top || this._dropSegment === Stack.Segment.Left;
-        const hasCorrectParent = (isVertical && this.stackParent.isColumn) || (isHorizontal && this.stackParent.isRow);
-        const dimension = isVertical ? 'height' : 'width';
+        const itemConfig = ResolvedItemConfig.createDefault(splitType);
+        const rowOrColumn = this.layoutManager.createContentItem(itemConfig, this) as RowOrColumn;
+        this.stackParent.replaceChild(this, rowOrColumn);
 
-        /*
-         * The content item can be either a component or a stack. If it is a component, wrap it into a stack
-         */
-        if (contentItem.isComponent) {
-            const itemConfig = ResolvedStackItemConfig.createDefault();
-            itemConfig.header = this.createHeaderConfig();
-            const stack = this.layoutManager.createAndInitContentItem(itemConfig, this);
-            stack.addChild(contentItem);
-            contentItem = stack;
-        }
+        rowOrColumn.addChild(this, undefined, true);
+        rowOrColumn.addChild(stackWithAddedItem, addAtPosition, true);
 
-
-        /*
-         * If the contentItem that's being dropped is not dropped on a Stack (cases which just passed above and
-         * which would wrap the contentItem in a Stack) we need to check whether contentItem is a RowOrColumn.
-         * If it is, we need to re-wrap it in a Stack like it was when it was dragged by its Tab (it was dragged!).
-         */
-        if(contentItem.type === ItemType.row || contentItem.type === ItemType.column){
-            const itemConfig = ResolvedStackItemConfig.createDefault();
-            itemConfig.header = this.createHeaderConfig();
-            const stack = this.layoutManager.createContentItem(itemConfig, this);
-            stack.addChild(contentItem)
-            contentItem = stack
-        }
-
-        /*
-         * If the item is dropped on top or bottom of a column or left and right of a row, it's already
-         * layd out in the correct way. Just add it as a child
-         */
-        if (hasCorrectParent) {
-            const index = this.stackParent.contentItems.indexOf(this);
-            this.stackParent.addChild(contentItem, insertBefore ? index : index + 1, true);
-            this[dimension] *= 0.5;
-            contentItem[dimension] = this[dimension];
-            this.stackParent.updateSize(false);
-            /*
-             * This handles items that are dropped on top or bottom of a row or left / right of a column. We need
-             * to create the appropriate contentItem for them to live in
-             */
-        } else {
-            const type = isVertical ? ItemType.column : ItemType.row;
-            const itemConfig = ResolvedItemConfig.createDefault(type) as ResolvedItemConfig;
-            const rowOrColumn = this.layoutManager.createContentItem(itemConfig, this);
-            this.stackParent.replaceChild(this, rowOrColumn);
-
-            rowOrColumn.addChild(contentItem, insertBefore ? 0 : undefined, true);
-            rowOrColumn.addChild(this, insertBefore ? undefined : 0, true);
-
-            this[dimension] = 50;
-            contentItem[dimension] = 50;
-            rowOrColumn.updateSize(false);
-        }
-    }
-
-    /**
-     * If the user hovers above the header part of the stack, indicate drop positions for tabs.
-     * otherwise indicate which segment of the body the dragged item would be dropped on
-     *
-     * @param x - Absolute Screen X
-     * @param y - Absolute Screen Y
-     * @internal
-     */
-    override highlightDropZone(x: number, y: number): void {
-
-        const dropTargetIndicator = this.layoutManager.dropTargetIndicator;
-        if (dropTargetIndicator === null) {
-            throw new UnexpectedNullError('SHHDZDTI97110');
-        }
-
-        for (const key in this._contentAreaDimensions) {
-            const segment = key as Stack.Segment;
-            const contentArea = this._contentAreaDimensions[segment];
-            
-            const area = contentArea.hoverArea;
-            if (area.x1 < x && area.x2 > x && area.y1 < y && area.y2 > y) {
-
-                this._dropSegment = segment;
-                let highlightArea: AreaLinkedRect;
-                let dropIndex: number;
-                if (segment === Stack.Segment.Header) {
-                    ({area: highlightArea, dropIndex} = this.getHeaderDropArea(this._header.leftRightSided ? y : x));
-                } else {
-                    this.resetHeaderDropZone();
-                    this._dropIndex = undefined;
-                    highlightArea = contentArea.highlightArea;
-                }
-
-                dropTargetIndicator.highlightArea(highlightArea);
-                this._dropIndex = dropIndex;
-                return;
-
-                // TODO ASB YAH: made changes here.. and now when dragging over stack header, get
-                // some weird effects.. don't think had those before => need to commit, and checkout
-                // previous version to check...
-                // (could also rebase on new HEAD)
-            }
-        }
+        this[rowOrColumn.dimension] = 50;
+        stackWithAddedItem[rowOrColumn.dimension] = 50;
+        rowOrColumn.updateSize(false);
     }
 
     /** @internal */
-    getDropAreas(): ContentItem.Area[] {
-        const dropAreas: ContentItem.Area[] = [];
+    getDropZones(): DropZone[] {
+        const dropZones: DropZone[] = [];
         if (this.element.style.display === 'none') {
-            return dropAreas;
+            return dropZones;
         }
 
         // TODO ASB: why not only do this when area is asked to highlight drop zone?
         //  - because only want to do it once per drag operation? (ie at the start)
         //    - instead, could just clear the array here (or maybe at start of this method), and re-generate if/when needed?
-        // Actually, contentAreaDimensions used below!
-        this.populateContentAreaDimenstions();
-
-        const area = super.getElementArea(this.element);
-        dropAreas.push(area);
-
-        // TODO ASB: so looks like we return two areas, one that covers the entire area
-        // and one that is just for the header area.
-        // And then later, when asked to highlight drop zone... what happens?
-        // And what happens when actually drop?
-        // Basically, want to re-think whether we need to return two areas here...
-        // (I think there's complexity with the stack, where the tab header drop zone moves around?)
-        // Also consider what will be needed for row/column...
-        const stackContentAreaDimensions = this.contentAreaDimensions;
-        if (stackContentAreaDimensions === undefined) {
-            throw new UnexpectedUndefinedError('LMCIASC45599');
-        }
-
-        const highlightArea = stackContentAreaDimensions.header.highlightArea
-        const surface = (highlightArea.x2 - highlightArea.x1) * (highlightArea.y2 - highlightArea.y1);
-
-        const header: ContentItem.Area = {
-            x1: highlightArea.x1,
-            x2: highlightArea.x2,
-            y1: highlightArea.y1,
-            y2: highlightArea.y2,
-            contentItem: this,
-            surface,
-        };
-        dropAreas.push(header);
-
-        return dropAreas;
+        dropZones.push(...this.getHeaderAndBodyDropZones());
+        return dropZones;
     }
 
-    private populateContentAreaDimenstions(): void {
+    private getHeaderAndBodyDropZones(): DropZone[] {
+        const dropZones: DropZone[] = [];
         const headerArea = super.getElementArea(this._header.element);
         const contentArea = super.getElementArea(this._childElementContainer);
         if (headerArea === null || contentArea === null) {
@@ -631,29 +461,47 @@ export class Stack extends ComponentParentableItem {
         const contentWidth = contentArea.x2 - contentArea.x1;
         const contentHeight = contentArea.y2 - contentArea.y1;
 
-        this._contentAreaDimensions = {
-            header: {
-                hoverArea: {
-                    x1: headerArea.x1,
-                    y1: headerArea.y1,
-                    x2: headerArea.x2,
-                    y2: headerArea.y2
-                },
-                highlightArea: {
-                    x1: headerArea.x1,
-                    y1: headerArea.y1,
-                    x2: headerArea.x2,
-                    y2: headerArea.y2
-                }
+        // TODO ASB: get the separate header areas rather than one big one // YAH (maybe?)
+        dropZones.push({
+            description: `stack header (stack ${this.id})`,
+            contentItem: this,
+            onHoverCallback: () => {
+                // TODO ASB: actually want to have separate drop zone for each potential
+                //  hoverable tab position.
+                // on hover, want to... also insert the dummy tab being highlighted
+                //  (and shift/hide other tabs in the header)
+            },
+            onDrop: (droppedItem: ContentItem) => {
+                this.resetHeaderDropZone();
+                // TODO ASB: rather than relying on _dropIndex being set,
+                //  use a callback on the drop zone to do this:
+                const dropIndex: number|undefined = undefined; // TODO ASB: populate dropIndex for each droppable position
+                this.addChild(droppedItem, dropIndex);
+            },
+            hoverArea: {
+                x1: headerArea.x1,
+                y1: headerArea.y1,
+                x2: headerArea.x2,
+                y2: headerArea.y2
+            },
+            highlightArea: {
+                x1: headerArea.x1,
+                y1: headerArea.y1,
+                x2: headerArea.x2,
+                y2: headerArea.y2
             }
-        };
+        });
 
         /**
          * Highlight the entire body if the stack is empty
          */
         if (this.contentItems.length === 0) {
-
-            this._contentAreaDimensions.body = {
+            dropZones.push({
+                description: `empty stack (id=${this.id})`,
+                contentItem: this,
+                onDrop: (droppedItem: ContentItem) => {
+                    this.addChild(droppedItem, 0, true);
+                },
                 hoverArea: {
                     x1: contentArea.x1,
                     y1: contentArea.y1,
@@ -666,9 +514,14 @@ export class Stack extends ComponentParentableItem {
                     x2: contentArea.x2,
                     y2: contentArea.y2
                 }
-            };
+            });
         } else {
-            this._contentAreaDimensions.left = {
+            dropZones.push({
+                description: `stack left side (stack ${this.id})`,
+                onDrop: (droppedItem: ContentItem) => {
+                    this.splitStackAndAddItem(ItemType.row, droppedItem, 0);
+                },
+                contentItem: this,
                 hoverArea: {
                     x1: contentArea.x1,
                     y1: contentArea.y1,
@@ -681,9 +534,14 @@ export class Stack extends ComponentParentableItem {
                     x2: contentArea.x1 + contentWidth * 0.5,
                     y2: contentArea.y2
                 }
-            };
+            });
 
-            this._contentAreaDimensions.top = {
+            dropZones.push({
+                description: `stack top side (stack ${this.id})`,
+                onDrop: (droppedItem: ContentItem) => {
+                    this.splitStackAndAddItem(ItemType.column, droppedItem, 0);
+                },
+                contentItem: this,
                 hoverArea: {
                     x1: contentArea.x1 + contentWidth * 0.25,
                     y1: contentArea.y1,
@@ -696,9 +554,14 @@ export class Stack extends ComponentParentableItem {
                     x2: contentArea.x2,
                     y2: contentArea.y1 + contentHeight * 0.5
                 }
-            };
+            });
 
-            this._contentAreaDimensions.right = {
+            dropZones.push({
+                description: `stack right side (stack ${this.id})`,
+                onDrop: (droppedItem: ContentItem) => {
+                    this.splitStackAndAddItem(ItemType.row, droppedItem, undefined);
+                },
+                contentItem: this,
                 hoverArea: {
                     x1: contentArea.x1 + contentWidth * 0.75,
                     y1: contentArea.y1,
@@ -711,9 +574,14 @@ export class Stack extends ComponentParentableItem {
                     x2: contentArea.x2,
                     y2: contentArea.y2
                 }
-            };
+            });
 
-            this._contentAreaDimensions.bottom = {
+            dropZones.push({
+                description: `stack bottom side (stack ${this.id})`,
+                onDrop: (droppedItem: ContentItem) => {
+                    this.splitStackAndAddItem(ItemType.column, droppedItem, undefined);
+                },
+                contentItem: this,
                 hoverArea: {
                     x1: contentArea.x1 + contentWidth * 0.25,
                     y1: contentArea.y1 + contentHeight * 0.5,
@@ -726,8 +594,10 @@ export class Stack extends ComponentParentableItem {
                     x2: contentArea.x2,
                     y2: contentArea.y2
                 }
-            };
+            });
         }
+
+        return dropZones;
     }
 
     /**
@@ -766,8 +636,13 @@ export class Stack extends ComponentParentableItem {
         }
     }
 
+    // TODO ASB: get rid of this method.
+    //  replace with a method that gets called at point a header drop zone gets hovered.
+    //  At that point, call a new method (here, or stack header class) to insert tab
+    //  getting highlighted.
+    //  Means also need 'det grop zones' to return header tab positions.
     /** @internal */
-    private getHeaderDropArea(x: number): {area: AreaLinkedRect, dropIndex: number} {
+    private getHeaderDropArea(x: number): {area: AreaLinkedRect, dropIndex: number}|null {
         // Only walk over the visible tabs
         const tabsLength = this._header.lastVisibleTabIndex + 1;
 
@@ -819,7 +694,7 @@ export class Stack extends ComponentParentableItem {
 
             // If we're not above any tabs, or to the right of any tab, we are out of the area, so give up
             if (isAboveTab === false && x < tabLeft) {
-                return;
+                return null;
             }
 
             const halfX = tabLeft + tabWidth / 2;
@@ -828,6 +703,7 @@ export class Stack extends ComponentParentableItem {
             // wrinkle is that need to update the position of the tabDropPlaceholder too.
             // (and defining drop areas in advance would mean ignoring the existence of the tabDropPlaceholder
             //  when determining drop zone -- but that might be an improvement?)
+            // YAH: give it a try
             if (x < halfX) {
                 dropIndex = tabIndex;
                 tabElement.insertAdjacentElement('beforebegin', this.layoutManager.tabDropPlaceholder);
@@ -958,37 +834,5 @@ export class Stack extends ComponentParentableItem {
     /** @internal */
     private emitStateChangedEvent() {
         this.emitBaseBubblingEvent('stateChanged');
-    }
-}
-
-/** @public */
-export namespace Stack {
-    /** @internal */
-    export const enum Segment {
-        Header = 'header',
-        Body = 'body',
-        Left = 'left',
-        Right = 'right',
-        Top = 'top',
-        Bottom = 'bottom',
-    }
-
-    /** @internal */
-    export interface ContentAreaDimension {
-        hoverArea: AreaLinkedRect;
-        highlightArea: AreaLinkedRect;
-    }
-
-    /** @internal */
-    export type ContentAreaDimensions = {
-        [segment: string]: ContentAreaDimension;
-    };
-
-    /** @internal */
-    export function createElement(document: Document): HTMLDivElement {
-        const element = document.createElement('div');
-        element.classList.add(DomConstants.ClassName.Item);
-        element.classList.add(DomConstants.ClassName.Stack);
-        return element;
     }
 }
